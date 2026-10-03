@@ -3338,7 +3338,26 @@ document.getElementById("fileShapefileDir").addEventListener("change", async (e)
   e.target.value = "";
 });
 
+function resetYieldFilters(){
+  S.filters = {
+    DELAY:{enabled:false, val:0}, START:{enabled:false, val:3}, END:{enabled:false, val:3},
+    STARTSEC:{enabled:false, val:null}, ENDSEC:{enabled:false, val:null},
+    MAXV:{enabled:false, val:null}, MINV:{enabled:false, val:null}, SMV:{enabled:false, val:0.5},
+    MINS:{enabled:false, val:null}, MAXY:{enabled:false, val:null}, MINY:{enabled:false, val:null},
+    STDY:{enabled:false, val:3}, OVLP:{enabled:false, val:50}, LSTD:{enabled:false, val:3},
+    POS:{enabled:false, bounds:null}, MAN:{enabled:false},
+  };
+  S.manPolygons = [];
+  S.autoClean = false;
+  const order = document.getElementById("customFilterOrderEnabled");
+  if (order) order.checked = false;
+  S.customFilterOrder = false;
+  if (typeof buildFilterList === "function") buildFilterList();
+  const hint = document.getElementById("filterResultHint");
+  if (hint) hint.textContent = "";
+}
 function finishImport(){
+  resetYieldFilters();
   document.getElementById("importStatusSection").style.display = "block";
   document.getElementById("stFile").textContent = S.sourceFilename;
   document.getElementById("stFormat").textContent = S.sourceFormat;
