@@ -119,6 +119,14 @@ input[type=number]{font-family:var(--mono);}
 .btn:hover{border-color:var(--accent);}
 .btn.primary{background:var(--accent); color:#0f1207; border-color:var(--accent); font-weight:600;}
 .btn.primary:hover{background:var(--accent2); border-color:var(--accent2);}
+.btn.big{font-size:18px; padding:16px 12px; min-height:52px;}
+.dropzone{display:block; border:2px dashed var(--line); border-radius:var(--radius); padding:22px 12px; text-align:center; font-size:16px; cursor:pointer;}
+.dropzone input{display:none;}
+#cleanBar{display:none;}
+@media (max-width: 860px){
+  #cleanBar{display:block; position:fixed; left:0; right:0; bottom:0; z-index:900; padding:10px; background:var(--panel); border-top:1px solid var(--line);}
+  #cleanBar .btn{margin:0; min-height:52px; font-size:18px;}
+}
 .btn.ghost{background:transparent;}
 .btn.small{padding:5px 8px; font-size:11.5px; width:auto;}
 .btn:disabled{opacity:.4; cursor:not-allowed;}
@@ -313,7 +321,8 @@ textarea.summaryPreview{
   <div id="sidebarBackdrop"></div>
   <div id="sidebar">
     <div id="tabs">
-      <button class="tabbtn active" data-tab="import">Import</button>
+      <button class="tabbtn active" data-tab="clean">Clean</button>
+      <button class="tabbtn" data-tab="import">Import</button>
       <button class="tabbtn" data-tab="balance">Balance</button>
       <button class="tabbtn" data-tab="filters">Filters</button>
       <button class="tabbtn" data-tab="postcal">Post-Cal</button>
@@ -324,7 +333,34 @@ textarea.summaryPreview{
     </div>
     <div id="panels">
       <!-- ============ IMPORT ============ -->
-      <div class="panel active" id="panel-import">
+      <div class="panel active" id="panel-clean">
+        <div class="section">
+          <h3>1. Drop the file</h3>
+          <label class="dropzone" id="dropZone">
+            Drop a shapefile, a zip, or a text file
+            <input type="file" id="fileClean" accept=".zip,.shp,.dbf,.shx,.prj,.txt,.csv,.dat,.geojson,.json" multiple>
+          </label>
+          <div class="hint" id="cleanFile">No field loaded. The parts of a shapefile can be chosen together.</div>
+        </div>
+        <div class="section">
+          <h3>2. Clean</h3>
+          <button type="button" class="btn primary big" id="btnCleanField">Clean this field</button>
+          <div class="hint" id="cleanResult">The delay, the points removed, and anything left off will show here.</div>
+          <button type="button" class="btn" id="btnAdjust">Adjust the cuts</button>
+        </div>
+        <div class="section">
+          <h3>3. Check and send</h3>
+          <button type="button" class="btn" id="btnBeforeAfter">Show the file before cleaning</button>
+          <div class="field">
+            <label>Scale ticket, bu/ac</label>
+            <input type="number" id="scaleTicket" step="0.1" placeholder="optional">
+          </div>
+          <div class="hint" id="ticketResult"></div>
+          <button type="button" class="btn primary" id="btnSendShapefile">Send shapefile</button>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-import">
         <div class="section">
           <h3>Load yield data</h3>
           <div class="field">
@@ -669,6 +705,7 @@ textarea.summaryPreview{
   <span id="sbMsg"></span>
 </div>
 
+<div id="cleanBar"><button type="button" class="btn primary" id="btnCleanFieldBar">Clean this field</button></div>
 <div id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -2830,6 +2867,7 @@ function quantile(sorted, q){
 }
 function finishAutoClean(jobs){
   S.autoClean = false;
+  S.previewRaw = false;
   const peaks = jobs.filter(j => j.best && !j.edge).map(j => j.best.d);
   const spread = peaks.length > 1 ? Math.max(...peaks) - Math.min(...peaks) : 0;
   if (spread > 6){
@@ -2866,6 +2904,8 @@ function finishAutoClean(jobs){
   const kept = S.filteredRows.length, total = S.rawRows.length;
   const line = `Cleaned. Delay ${delay ? delay.value : "?"} s. Yield, speed, half-header swath, 20% speed jumps, 50% overlap and local scatter are on. ${kept.toLocaleString()} of ${total.toLocaleString()} points remain. Start and end of pass were left off.`;
   if (hint) hint.textContent = line;
+  const clean = document.getElementById("cleanResult");
+  if (clean) clean.textContent = line;
   toast(line);
 }
 function setFilter(code, val){
@@ -2889,6 +2929,73 @@ function runAutoClean(){
   readFiltersFromUI();
   runPcdiEstimate();
 }
+
+
+function refreshCleanPanel(){
+  const file = document.getElementById("cleanFile");
+  if (file) file.textContent = S.rawRows.length ? `${S.sourceFilename} · ${S.rawRows.length.toLocaleString()} points` : "No field loaded. The parts of a shapefile can be chosen together.";
+  const ycol = S.mapping.yieldDry || S.mapping.yieldWet;
+  const vals = ycol ? S.filteredRows.map(r => parseFloat(r[ycol])).filter(isFinite) : [];
+  const mean = vals.length ? vals.reduce((a,b)=>a+b,0) / vals.length : NaN;
+  const ticket = parseFloat(document.getElementById("scaleTicket") && document.getElementById("scaleTicket").value);
+  const ticketLine = document.getElementById("ticketResult");
+  if (ticketLine){
+    if (!vals.length) ticketLine.textContent = "";
+    else if (isFinite(ticket)) ticketLine.textContent = `Cleaned average ${mean.toFixed(1)}. Ticket ${ticket.toFixed(1)}. Difference ${(mean-ticket).toFixed(1)}.`;
+    else ticketLine.textContent = `Cleaned average ${mean.toFixed(1)}.`;
+  }
+  const bar = document.getElementById("cleanBar");
+  if (bar) bar.style.display = S.rawRows.length && window.innerWidth <= 860 ? "block" : "none";
+}
+async function loadFromClean(files){
+  if (!files.length) return;
+  const names = files.map(f => f.name.toLowerCase());
+  if (names.some(n => n.endsWith(".shp") || n.endsWith(".zip") || n.endsWith(".dbf"))){
+    await importShapefileSelection(files);
+    return;
+  }
+  const f = files[0];
+  if (/\.geojson$|\.json$/i.test(f.name)){
+    const gj = JSON.parse(await f.text());
+    ingestFeatureCollection(gj.type === "FeatureCollection" ? gj : {type:"FeatureCollection", features:[gj]}, f.name, "GeoJSON");
+    return;
+  }
+  const text = await f.text();
+  const rows = parseAgLeaderText(text);
+  if (rows.length){
+    S.rawRows = rows;
+    S.columns = AGL_COLS.concat(["Timestamp","Speed_mph","Swath_ft","Yield_bu_ac"]);
+    S.sourceFormat = "AgLeader Advanced Text"; S.sourceFilename = f.name;
+    S.mapping = { lon:"Longitude", lat:"Latitude", yieldDry:"Yield_bu_ac", yieldWet:"Grain_Flow_lbs_sec", primaryYield:"dry", velocity:"Speed_mph", swath:"Swath_ft", moisture:"Moisture", timestamp:"Timestamp", machine:"Monitor_Name" };
+    S.units = { yield:"bu/ac", velocity:"mph", swath:"ft", altitude:"ft" };
+    finishImport();
+    return;
+  }
+  Papa.parse(text, { header:true, skipEmptyLines:true, complete: (res) => {
+    if (!res.data.length){ toast("No rows in that file.", true); return; }
+    const columns = res.meta.fields;
+    S.rawRows = res.data; S.columns = columns; S.numericCols = columns;
+    S.sourceFormat = "Delimited"; S.sourceFilename = f.name;
+    finishImport();
+  }});
+}
+function showBeforeAfter(){
+  S.previewRaw = !S.previewRaw;
+  const btn = document.getElementById("btnBeforeAfter");
+  if (btn) btn.textContent = S.previewRaw ? "Show the cleaned field" : "Show the file before cleaning";
+  recompute();
+}
+document.getElementById("fileClean").addEventListener("change", async (e) => {
+  try{ await loadFromClean([...e.target.files]); }
+  catch(err){ toast("Could not read that file. " + err.message, true); }
+  e.target.value = "";
+});
+document.getElementById("btnCleanField").addEventListener("click", runAutoClean);
+document.getElementById("btnCleanFieldBar").addEventListener("click", runAutoClean);
+document.getElementById("btnAdjust").addEventListener("click", () => document.querySelector('.tabbtn[data-tab="filters"]').click());
+document.getElementById("btnBeforeAfter").addEventListener("click", showBeforeAfter);
+document.getElementById("btnSendShapefile").addEventListener("click", () => document.getElementById("btnExportShapefile").click());
+document.getElementById("scaleTicket").addEventListener("input", refreshCleanPanel);
 
 function buildFilterList(){
   const wrap = document.getElementById("filterList");
@@ -2919,7 +3026,7 @@ function buildFilterList(){
     row.innerHTML = `
       <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
       <input type="checkbox" id="filterOn_${code}">
-      <span class="fname">${code}</span>
+      <span class="fname">${name}</span>
       <span class="fdesc">${desc}</span>
       ${extra}
     `;
@@ -3443,6 +3550,7 @@ function runPipeline({ trace=false } = {}){
     ? S.filterOrder.filter(code => DEFAULT_FILTER_ORDER.includes(code))
     : DEFAULT_FILTER_ORDER;
   for (const code of order){
+    if (S.previewRaw) break;
     const f = S.filters[code];
     if (!f.enabled) continue;
     let next = rows;
@@ -3551,6 +3659,7 @@ function recompute(){
   renderPoints();
   renderSummaryPreview();
   if (document.getElementById("manDrawHint")) updateManHint(manRemovedCount());
+  refreshCleanPanel();
 }
 
 document.getElementById("btnApplyFilters").addEventListener("click", () => { readFiltersFromUI(); recompute(); });
