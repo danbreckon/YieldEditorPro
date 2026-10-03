@@ -602,6 +602,14 @@ textarea.summaryPreview{
       <!-- ============ HELP ============ -->
       <div class="panel" id="panel-help">
         <div class="section help-block">
+          <h3>A Precision Planting .2020 file</h3>
+          <p>A shapefile, a zip, or a text file opens in the page by itself. A <b>.2020</b> file does not. The reader is a separate program that has to be registered once. The page cannot install it.</p>
+          <p>Download <b>YieldEditor-with-2020.zip</b> and right-click it, then choose <b>Extract All</b>. Open the new folder. Double-click <b>Open Yield Editor</b>. Do not double-click <b>YieldEditorPro.html</b>. Open Yield Editor registers the reader and then opens the page.</p>
+          <p>Drop the <b>.2020</b> on that page. Windows may ask to open <b>Yield2020</b>. Allow it. The harvest points load, and <b>Clean this field</b> runs the same pass as a shapefile. A delay the monitor already applied is reported. The search still runs.</p>
+          <p>Open Yield Editor sits next to YieldEditorPro.html and Yield2020.exe. If the folder only has the page, the zip was not fully extracted. If Yield2020.exe is missing after Extract All, Windows Defender may have removed it. Check Protection history and allow it. After the one double-click, a later drop can start the reader. The page downloaded on its own never will.</p>
+        </div>
+
+        <div class="section help-block">
           <h3>About this tool</h3>
           <p>Yield Editor Pro Web is a single, self-contained HTML file for cleaning up combine yield-monitor data: import a raw yield file, correct machine/date/moisture calibration drift, run it through a configurable filter set to drop bad points, true it up to a known scale-ticket total, and export the cleaned result as CSV, GeoJSON, Shapefile, AgLeader Text, or an interpolated GeoTIFF raster — all in the browser, with nothing uploaded anywhere. It's aimed at the same job the original desktop Yield Editor does, with a filter/balance/calibrate pipeline, a web map for drawing selections, and session save/load, in a form that needs no installer and runs on anything with a modern browser.</p>
         </div>
