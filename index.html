@@ -2973,11 +2973,25 @@ async function readerUp(){
   catch { return false; }
 }
 function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
+function post2020(file, onProgress){
+  return new Promise((resolve, reject) => {
+    const req = new XMLHttpRequest();
+    req.open("POST", "http://127.0.0.1:8765/convert");
+    req.responseType = "text";
+    req.upload.onprogress = (ev) => {
+      if (ev.lengthComputable) onProgress("Sending the file… " + Math.round(ev.loaded * 100 / ev.total) + "%");
+    };
+    req.onload = () => req.status >= 200 && req.status < 300 ? resolve(req.responseText) : reject(new Error(req.responseText || "The 20/20 reader could not read that file."));
+    req.onerror = () => reject(new Error("The 20/20 reader stopped. Drop the file again."));
+    req.send(file);
+  });
+}
 async function load2020(file){
   const clean = document.getElementById("cleanResult");
-  if (clean) clean.textContent = "Reading the 20/20 file…";
+  const say = (msg) => { if (clean) clean.textContent = msg; };
+  say("Reading the 20/20 file…");
   if (!(await readerUp())){
-    if (clean) clean.textContent = "Starting the 20/20 reader…";
+    say("Starting the 20/20 reader…");
     const frame = document.createElement("iframe");
     frame.style.display = "none";
     frame.src = "yieldeditor://start";
@@ -2990,14 +3004,20 @@ async function load2020(file){
     frame.remove();
     if (!up) throw new Error("The reader did not start. Unzip YieldEditor-with-2020 and double-click Open Yield Editor once, then drop the file again.");
   }
-  let res;
-  try {
-    res = await fetch("http://127.0.0.1:8765/convert", { method:"POST", body: file });
-  } catch (err) {
-    throw new Error("The 20/20 reader stopped. Drop the file again.");
-  }
-  if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
+  let stop = false;
+  const watch = (async () => {
+    while (!stop){
+      await sleep(700);
+      try {
+        const r = await fetch("http://127.0.0.1:8765/status");
+        if (r.ok) say(await r.text());
+      } catch {}
+    }
+  })();
+  let text;
+  try { text = await post2020(file, say); }
+  finally { stop = true; }
+  const data = JSON.parse(text);
   if (!data.rows || !data.rows.length) throw new Error("The 20/20 file had no harvest points.");
   S.rawRows = data.rows;
   S.columns = ["Longitude","Latitude","Yield_bu_ac","WetYield_bu_ac","Moisture","Timestamp","Speed_mph","Heading","Distance_ft","Flow_lb_s","AppliedDelay_s","Swath_ft"];
