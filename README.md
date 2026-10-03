@@ -8,6 +8,13 @@ A free, browser-based tool for cleaning combine yield-monitor data — importing
 
 ---
 
+
+## Automatic clean
+
+Clean this field runs the automatic pass and writes the result into the filter boxes. The flow delay is estimated from opposing passes, with the field edge and short fragments left out. If the direction blocks disagree by more than 6 seconds, the delay stays 0. Moisture delay and start/end pass delay are not set by this pass.
+
+A shapefile, a zip, or a text file opens in the page. A Precision Planting .2020 file needs the local reader. Extract YieldEditor-with-2020.zip and double-click Open Yield Editor, not the page. The steps are in [Read-me-2020.txt](Read-me-2020.txt).
+
 ## Features
 
 - **Import** — AgLeader Advanced Text, delimited CSV/TXT/DAT with a header row, GeoJSON, and Shapefiles (zipped or loose `.shp`/`.dbf`/`.shx`/`.prj`). Auto-detects common column names, with manual override.
