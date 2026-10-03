@@ -2174,7 +2174,7 @@ const S = {
 };
 
 let map, boundaryLayer;
-let pointLayer = null;
+let pointLayer, pointRenderer = null;
 let selectionLayer = null;   // FeatureGroup holding the finished POS box + MAN polygons
 let posBoxLayer = null;      // the single POS rectangle, if any
 
@@ -2783,7 +2783,8 @@ function runPcdiEstimate(){
     }).filter(j => j.lines.length >= 2);
     if (!jobs.length){ say("PCDI found no block with two passes.", true); return; }
     const delays = [];
-    for (let d = -25; d <= 25; d += 0.5) delays.push(Math.round(d * 2) / 2);
+    for (let d = -25; d <= 25; d += 1) delays.push(d);
+    let refined = false;
     const interp = (target, pts) => {
       let lo = 0, hi = pts.length - 1;
       while (hi - lo > 1){ const mid = (lo + hi) >> 1; if (pts[mid].t <= target) lo = mid; else hi = mid; }
@@ -2831,6 +2832,18 @@ function runPcdiEstimate(){
       di++;
       if (hint) hint.textContent = `PCDI ${d} s (${di}/${delays.length})…`;
       if (di < delays.length){ setTimeout(step, 0); return; }
+      if (!refined){
+        refined = true;
+        const have = new Set(delays);
+        for (const job of jobs){
+          const best = job.curve.reduce((a,b) => b.rsc > a.rsc ? b : a);
+          for (let d = best.d - 1; d <= best.d + 1; d += 0.5){
+            const stepD = Math.round(d * 2) / 2;
+            if (!have.has(stepD)){ have.add(stepD); delays.push(stepD); }
+          }
+        }
+        if (di < delays.length){ setTimeout(step, 0); return; }
+      }
       for (const job of jobs){
         job.curve.sort((a,b) => b.rsc - a.rsc);
         job.best = job.curve[0];
@@ -3768,6 +3781,7 @@ function renderPoints(){
   document.getElementById("legendMax").textContent = fmtNum(hi);
 
   const layers = [];
+  if (!pointRenderer) pointRenderer = L.canvas({ padding: 0.5 });
   // Downsample rendering for very large sets to keep the map responsive
   const cap = 40000;
   const step = Math.max(1, Math.floor(S.filteredRows.length / cap));
@@ -3784,9 +3798,9 @@ function renderPoints(){
     } else {
       const la = parseFloat(r[lat]), lo_ = parseFloat(r[lon]);
       if (!isFinite(la) || !isFinite(lo_)) continue;
-      m = L.circleMarker([la, lo_], { radius:3, color, fillColor:color, fillOpacity:0.85, weight:0, opacity:0.9 });
+      m = L.circleMarker([la, lo_], { radius:3, color, fillColor:color, fillOpacity:0.85, weight:0, opacity:0.9, renderer: pointRenderer });
     }
-    m.bindPopup(popupHtml(r, attr));
+    m.on("click", () => { m.bindPopup(popupHtml(r, attr)).openPopup(); });
     layers.push(m);
   }
   pointLayer = L.layerGroup(layers).addTo(map);
