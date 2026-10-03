@@ -2960,14 +2960,33 @@ function refreshCleanPanel(){
   const bar = document.getElementById("cleanBar");
   if (bar) bar.style.display = S.rawRows.length && window.innerWidth <= 860 ? "block" : "none";
 }
+async function readerUp(){
+  try { const r = await fetch("http://127.0.0.1:8765/health"); return r.ok; }
+  catch { return false; }
+}
+function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
 async function load2020(file){
   const clean = document.getElementById("cleanResult");
   if (clean) clean.textContent = "Reading the 20/20 file…";
+  if (!(await readerUp())){
+    if (clean) clean.textContent = "Starting the 20/20 reader…";
+    const frame = document.createElement("iframe");
+    frame.style.display = "none";
+    frame.src = "yieldeditor://start";
+    document.body.appendChild(frame);
+    let up = false;
+    for (let i = 0; i < 20; i++){
+      await sleep(500);
+      if (await readerUp()){ up = true; break; }
+    }
+    frame.remove();
+    if (!up) throw new Error("The reader did not start. Unzip YieldEditor-with-2020 and double-click Open Yield Editor once, then drop the file again.");
+  }
   let res;
   try {
     res = await fetch("http://127.0.0.1:8765/convert", { method:"POST", body: file });
   } catch (err) {
-    throw new Error("The 20/20 reader is not running. Close this page and open it with Open Yield Editor.");
+    throw new Error("The 20/20 reader stopped. Drop the file again.");
   }
   if (!res.ok) throw new Error(await res.text());
   const data = await res.json();
