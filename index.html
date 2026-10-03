@@ -340,8 +340,10 @@ textarea.summaryPreview{
             <input type="file" id="fileGeojson" accept=".geojson,.json">
           </div>
           <div class="field">
-            <label>ESRI Shapefile — points or polygons (.zip, or select the unzipped .shp + .dbf + .shx + .prj together)</label>
+            <label>ESRI Shapefile — points or polygons. A .zip, a folder, or the loose parts. The page cannot see files you did not hand it, so a lone .shp has no way to reach the .dbf beside it.</label>
             <input type="file" id="fileShapefile" accept=".zip,.shp,.dbf,.shx,.prj" multiple>
+            <input type="file" id="fileShapefileDir" webkitdirectory multiple style="display:none">
+            <button type="button" class="btn small" id="btnShapefileFolder">Choose folder</button>
           </div>
           <div class="hint">Column roles are auto-detected from common monitor naming (JD Ops Center, FieldView, AgLeader/SMS, generic). Review under <b>Column Mapping</b> below. Polygon inputs — as-harvested yield-cell files, zone/management-area files — import one row per polygon; the real footprint is kept for the map and for GeoJSON/Shapefile export, while filtering, balancing, and GeoTIFF interpolation use each polygon's centroid.</div>
         </div>
@@ -418,6 +420,7 @@ textarea.summaryPreview{
             <input type="checkbox" id="customFilterOrderEnabled">
             <span>Apply filters in the order listed below (drag <span style="letter-spacing:-2px;">⋮⋮</span> to reorder) — unchecked uses the traditional fixed USDA Yield Editor order regardless of how the list is arranged.</span>
           </label>
+          <button type="button" class="btn" id="btnAutoClean" style="margin:8px 0">Run auto clean</button>
           <div id="filterList"></div>
         </div>
         <button class="btn primary" id="btnApplyFilters">Apply All Filters</button>
@@ -593,7 +596,7 @@ textarea.summaryPreview{
         <div class="section help-block">
           <h3>Filters</h3>
           <p>The USDA Yield Editor's standard filter set, each optional and independently configurable. By default all enabled filters are applied in the traditional fixed order the USDA Yield Editor uses them in, regardless of how the list below is arranged — this is the "bulk" method. Check <b>"Apply filters in the order listed below"</b> to instead run them in whatever order you drag the rows into (grab the <code>⋮⋮</code> handle on the left of each row) — useful when the order genuinely changes the result, e.g. running Position/Manual-selection before a Std.-deviation-of-yield filter so outliers inside a hand-drawn zone don't skew the mean used to judge the rest of the field. Every row-removal filter (everything except Grain flow delay) drops the same rows regardless of which yield column is primary — the non-primary yield column and Moisture simply lose those rows too, since a whole record is removed at once, not one column at a time.</p>
-          <p><b>Grain flow delay</b> shifts yield readings by N observations to correct for the lag between grain entering the header and reaching the flow sensor. Since this is a re-index rather than a value threshold, it's applied to the primary yield column, the non-primary yield column (if mapped), and Moisture together, using the same N-observation shift for all three — they share one auger, so one sensor-lag correction is physically valid for all of them. <b>Start/End Pass Delay</b> drop the first/last N observations of every pass, to cut out header-raising/lowering transients — measured in observation count. <b>Start/End Pass Delay (sec)</b> do the same thing but measured in seconds elapsed from the true start or end of the pass (using the full pass, unaffected by whatever earlier filters have already removed), for monitors that don't log at a steady rate. You can enable either version, both, or neither for start and end independently.</p>
+          <p><b>Grain flow delay</b> shifts yield along the pass by N seconds so the flow reading lines up with where the crop was cut. Moisture is not moved. Estimate flow delay runs PCDI from -25 s to +25 s and writes the slider only when the ten noise runs agree within 3 s. <b>Start/End Pass Delay</b> drop the first/last N observations of every pass, to cut out header-raising/lowering transients — measured in observation count. <b>Start/End Pass Delay (sec)</b> do the same thing but measured in seconds elapsed from the true start or end of the pass (using the full pass, unaffected by whatever earlier filters have already removed), for monitors that don't log at a steady rate. You can enable either version, both, or neither for start and end independently.</p>
           <p><b>Maximum/Minimum velocity</b> drop points outside a ground-speed range. <b>Smooth velocity</b> drops a point if its speed changed by more than the given fraction from the previous point in the same pass — catches jerky GPS/speed readings. <b>Minimum swath</b> drops points where active header width fell below a threshold (partial-width passes). <b>Maximum/Minimum yield</b> and <b>Std. deviation of yield</b> are judged against the primary yield column only — a threshold entered for one unit system (e.g. bu/ac) wouldn't mean anything applied to a flow rate in the other. <b>Position (bounding box)</b> and <b>Manual selection</b> use shapes you draw on the map — Position keeps only points inside a box, Manual selection excludes points inside one or more drawn polygons.</p>
           <p>Once filtering finishes, whichever of Dry/Processed and Wet/Unprocessed yield are mapped are copied out as <code>yield_dry_clean</code> / <code>yield_wet_clean</code>, alongside <code>moisture_clean</code> if Moisture is mapped — three explicitly-named, filtered (and delay-corrected) attributes for platforms that want the wet + dry + moisture trio to build their own yield maps. The hint line below "Apply All Filters" shows the running record count after each enabled stage, in order, so you can see which filter is removing how much data.</p>
         </div>
@@ -899,22 +902,42 @@ function computeTransects(rows, lonCol, latCol, tsCol, velCol, machineCol){
    of row objects (row objects carry __transect from above).
    --------------------------------------------------------------- */
 const Filters = {
-  DELAY(rows, yieldCol, delayObs, extraCols){
-    if (!delayObs) return rows;
-    const n = rows.length, shift = Math.trunc(delayObs);
+  DELAY(rows, yieldCols, delaySec, tsCol){
+    if (!delaySec || !tsCol) return rows;
+    const cols = (Array.isArray(yieldCols) ? yieldCols : [yieldCols]).filter(Boolean);
+    if (!cols.length) return rows;
+    const byPass = new Map();
+    rows.forEach((r, i) => {
+      const id = r.__transect;
+      if (!byPass.has(id)) byPass.set(id, []);
+      byPass.get(id).push(i);
+    });
     const out = [];
-    for (let i = 0; i < n; i++){
-      const j = i + shift;
-      if (j < 0 || j >= n) continue;
-      const r = Object.assign({}, rows[i]);
-      r[yieldCol] = rows[j][yieldCol];
-      if (r[yieldCol] === undefined || r[yieldCol] === null || Number.isNaN(r[yieldCol])) continue;
-      // Same physical observation-index shift applied to any extra
-      // columns (a secondary wet/dry yield column, Moisture) — they ride
-      // along on the same combine at the same instant, so the same N-tick
-      // sensor lag correction is valid for all of them at once.
-      if (extraCols) for (const c of extraCols){ if (c) r[c] = rows[j][c]; }
-      out.push(r);
+    for (const idxs of byPass.values()){
+      const pts = idxs.map(i => ({ i, t: parseTimestampToUnix(rows[i][tsCol]) }))
+        .filter(p => isFinite(p.t))
+        .sort((a, b) => a.t - b.t);
+      if (pts.length < 2) continue;
+      for (const p of pts){
+        const target = p.t + delaySec;
+        if (target < pts[0].t || target > pts[pts.length-1].t) continue;
+        let lo = 0, hi = pts.length - 1;
+        while (hi - lo > 1){
+          const mid = (lo + hi) >> 1;
+          if (pts[mid].t <= target) lo = mid; else hi = mid;
+        }
+        const a = pts[lo], b = pts[hi];
+        const span = b.t - a.t;
+        const u = span > 0 ? (target - a.t) / span : 0;
+        const r = Object.assign({}, rows[p.i]);
+        let ok = true;
+        for (const c of cols){
+          const va = parseFloat(rows[a.i][c]), vb = parseFloat(rows[b.i][c]);
+          if (!isFinite(va) || !isFinite(vb)){ ok = false; break; }
+          r[c] = va + (vb - va) * u;
+        }
+        if (ok) out.push(r);
+      }
     }
     return out;
   },
@@ -1001,6 +1024,65 @@ const Filters = {
   MINY(rows, yieldCol, miny){
     if (miny === null || miny === undefined || miny === "") return rows;
     return rows.filter(r => parseFloat(r[yieldCol]) >= miny);
+  },
+  OVLP(rows, latCol, lonCol, swathCol, limitPct){
+    if (!latCol || !lonCol || limitPct === null || limitPct === undefined || limitPct === "") return rows;
+    const limit = Number(limitPct) / 100;
+    let sw = 0, sn = 0;
+    if (swathCol) for (const r of rows){ const w = parseFloat(r[swathCol]); if (w > 0){ sw += w; sn++; } }
+    const swathM = sn ? (sw / sn) * 0.3048 : 9;
+    const cell = Math.max(1.5, swathM * 0.5);
+    const lat0 = parseFloat(rows[0][latCol]);
+    const mplon = 111320 * Math.cos(lat0 * Math.PI / 180);
+    const claimed = new Map();
+    const out = [];
+    for (const r of rows){
+      const la = parseFloat(r[latCol]), lo = parseFloat(r[lonCol]);
+      if (!isFinite(la) || !isFinite(lo)) continue;
+      const x = lo * mplon, y = la * 111320;
+      const half = Math.max(1, Math.round(swathM / cell / 2));
+      let tot = 0, hit = 0;
+      const keys = [];
+      for (let dx = -half; dx <= half; dx++){
+        const key = (y / cell | 0) + "," + ((x / cell | 0) + dx);
+        keys.push(key); tot++;
+        if (claimed.has(key) && claimed.get(key) !== r.__transect) hit++;
+      }
+      if (tot && hit / tot > limit) continue;
+      for (const key of keys) if (!claimed.has(key)) claimed.set(key, r.__transect);
+      out.push(r);
+    }
+    return out;
+  },
+  LSTD(rows, latCol, lonCol, yieldCol, swathCol, nStd){
+    if (!latCol || !lonCol || !yieldCol || nStd === null || nStd === undefined || nStd === "") return rows;
+    let sw = 0, sn = 0;
+    if (swathCol) for (const r of rows){ const w = parseFloat(r[swathCol]); if (w > 0){ sw += w; sn++; } }
+    const cell = Math.max(4, sn ? (sw / sn) * 0.3048 : 9);
+    const lat0 = parseFloat(rows[0][latCol]);
+    const mplon = 111320 * Math.cos(lat0 * Math.PI / 180);
+    const buckets = new Map();
+    for (const r of rows){
+      const la = parseFloat(r[latCol]), lo = parseFloat(r[lonCol]), yv = parseFloat(r[yieldCol]);
+      if (!isFinite(la) || !isFinite(lo) || !isFinite(yv)) continue;
+      const key = (la * 111320 / cell | 0) + "," + (lo * mplon / cell | 0);
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(yv);
+    }
+    const stats = new Map();
+    for (const [key, vals] of buckets){
+      if (vals.length < 4) continue;
+      const mean = vals.reduce((a,b)=>a+b,0) / vals.length;
+      const std = Math.sqrt(vals.reduce((a,b)=>a+(b-mean)**2,0) / vals.length);
+      stats.set(key, [mean, std]);
+    }
+    return rows.filter(r => {
+      const la = parseFloat(r[latCol]), lo = parseFloat(r[lonCol]), yv = parseFloat(r[yieldCol]);
+      const key = (la * 111320 / cell | 0) + "," + (lo * mplon / cell | 0);
+      const st = stats.get(key);
+      if (!st || !isFinite(yv)) return true;
+      return Math.abs(yv - st[0]) <= nStd * st[1];
+    });
   },
   STDY(rows, yieldCol, nStd){
     if (nStd === null || nStd === undefined || nStd === "") return rows;
@@ -1999,7 +2081,7 @@ if (typeof module !== "undefined") module.exports = { idwGrid, krigingGrid };
    ============================================================ */
 
 const FILTER_DEFS = [
-  ["DELAY","Grain flow delay","Shift yield N observations forward to correct for combine grain-flow lag. Also shifts the non-primary yield column and Moisture (if mapped) by the same N.","obs",0],
+  ["DELAY","Grain flow delay","Shift yield position by this many seconds along the pass so the flow reading lines up with where the crop was cut. Moisture is not moved. Negative values are allowed.","sec",0],
   ["START","Start pass delay","Drop the first N observations of every pass (header lowering).","obs",3],
   ["END","End pass delay","Drop the last N observations of every pass (header raising).","obs",3],
   ["STARTSEC","Start pass delay (sec)","Drop points within the first N seconds of every pass (header lowering), timed from the mapped Timestamp column. Independent of the observation-count version above — use whichever matches how you think about lag.","sec",null],
@@ -2011,6 +2093,8 @@ const FILTER_DEFS = [
   ["MAXY","Maximum yield","Remove points above this yield value.","bu/ac",null],
   ["MINY","Minimum yield","Remove points below this yield value.","bu/ac",null],
   ["STDY","Std. deviation of yield","Remove points beyond N standard deviations from the mean yield.","stdev",3],
+  ["OVLP","Overlap","Drop a point when more than this percent of its header footprint was already harvested by an earlier pass. AYCE default is 50.","%",50],
+  ["LSTD","Local std. deviation","Drop a point more than this many standard deviations from the mean of its header-sized cell. AYCE runs this last.","stdev",3],
   ["POS","Position (bounding box)","Keep only points inside a box you draw on the map.","—",null],
   ["MAN","Manual selection","Exclude points inside polygon(s) you draw on the map.","—",null],
 ];
@@ -2031,7 +2115,7 @@ const S = {
     STARTSEC:{enabled:false, val:null}, ENDSEC:{enabled:false, val:null},
     MAXV:{enabled:false, val:null}, MINV:{enabled:false, val:null}, SMV:{enabled:false, val:0.5},
     MINS:{enabled:false, val:null}, MAXY:{enabled:false, val:null}, MINY:{enabled:false, val:null},
-    STDY:{enabled:false, val:3}, POS:{enabled:false, bounds:null}, MAN:{enabled:false},
+    STDY:{enabled:false, val:3}, OVLP:{enabled:false, val:50}, LSTD:{enabled:false, val:3}, POS:{enabled:false, bounds:null}, MAN:{enabled:false},
   },
   filterOrder: DEFAULT_FILTER_ORDER.slice(), // user-defined drag order, only used when customFilterOrder is true
   customFilterOrder: false,
@@ -2439,6 +2523,363 @@ document.getElementById("btnCancelDraw").addEventListener("click", cancelDraw);
 /* ---------------------------------------------------------------
    Filter panel construction
    --------------------------------------------------------------- */
+
+function nextPow2(n){ let p = 32; while (p < n) p <<= 1; return Math.min(p, 128); }
+function fft1(re, im, invert){
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++){
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j){ let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+  }
+  for (let len = 2; len <= n; len <<= 1){
+    const ang = (invert ? 2 : -2) * Math.PI / len;
+    const wRe = Math.cos(ang), wIm = Math.sin(ang);
+    for (let i = 0; i < n; i += len){
+      let cRe = 1, cIm = 0;
+      for (let k = 0; k < len/2; k++){
+        const vr = re[i+k+len/2]*cRe - im[i+k+len/2]*cIm;
+        const vi = re[i+k+len/2]*cIm + im[i+k+len/2]*cRe;
+        re[i+k+len/2] = re[i+k] - vr; im[i+k+len/2] = im[i+k] - vi;
+        re[i+k] += vr; im[i+k] += vi;
+        const nr = cRe*wRe - cIm*wIm; cIm = cRe*wIm + cIm*wRe; cRe = nr;
+      }
+    }
+  }
+  if (invert){ for (let i = 0; i < n; i++){ re[i] /= n; im[i] /= n; } }
+}
+function fft2(re, im, invert){
+  const n = re.length;
+  for (let y = 0; y < n; y++) fft1(re[y], im[y], invert);
+  for (let x = 0; x < n; x++){
+    const cr = new Array(n), ci = new Array(n);
+    for (let y = 0; y < n; y++){ cr[y] = re[y][x]; ci[y] = im[y][x]; }
+    fft1(cr, ci, invert);
+    for (let y = 0; y < n; y++){ re[y][x] = cr[y]; im[y][x] = ci[y]; }
+  }
+}
+function pcdiScore(rows, latCol, lonCol, yieldCol){
+  if (rows.length < 30) return 0;
+  let minLa = Infinity, maxLa = -Infinity, minLo = Infinity, maxLo = -Infinity;
+  for (const r of rows){
+    const la = parseFloat(r[latCol]), lo = parseFloat(r[lonCol]);
+    if (!isFinite(la) || !isFinite(lo)) continue;
+    if (la < minLa) minLa = la; if (la > maxLa) maxLa = la;
+    if (lo < minLo) minLo = lo; if (lo > maxLo) maxLo = lo;
+  }
+  const n = 64;
+  const img = Array.from({length:n}, () => new Array(n).fill(0));
+  const cnt = Array.from({length:n}, () => new Array(n).fill(0));
+  const valid = Array.from({length:n}, () => new Array(n).fill(false));
+  const dLa = (maxLa - minLa) || 1e-6, dLo = (maxLo - minLo) || 1e-6;
+  for (const r of rows){
+    const la = parseFloat(r[latCol]), lo = parseFloat(r[lonCol]), yv = parseFloat(r[yieldCol]);
+    if (!isFinite(la) || !isFinite(lo) || !isFinite(yv)) continue;
+    const x = Math.max(0, Math.min(n-1, Math.round((lo-minLo)/dLo*(n-1))));
+    const y = Math.max(0, Math.min(n-1, Math.round((la-minLa)/dLa*(n-1))));
+    img[y][x] += yv; cnt[y][x] += 1;
+  }
+  let sum = 0, sum2 = 0, filled = 0;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (cnt[y][x]){
+    img[y][x] /= cnt[y][x]; valid[y][x] = true; sum += img[y][x]; sum2 += img[y][x]*img[y][x]; filled++;
+  }
+  if (filled < 20) return 0;
+  const mean = sum / filled;
+  const sd = Math.sqrt(Math.max(1e-9, sum2/filled - mean*mean));
+  const g1 = Array.from({length:n}, () => new Array(n).fill(0));
+  const g2 = Array.from({length:n}, () => new Array(n).fill(0));
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++){
+    const yy = (y+1)%n, xx = (x+1)%n;
+    const empty = !(valid[y][x] && valid[yy][xx]);
+    const noise = empty ? (Math.random()*2-1)*sd : 0;
+    g1[y][x] = ((empty ? noise : img[y][x]) - mean) / sd;
+    g2[y][x] = ((empty ? noise : img[yy][xx]) - mean) / sd;
+  }
+  const re1 = g1.map(row => row.slice()), im1 = g1.map(() => new Array(n).fill(0));
+  const re2 = g2.map(row => row.slice()), im2 = g2.map(() => new Array(n).fill(0));
+  fft2(re1, im1, false); fft2(re2, im2, false);
+  const cr = g1.map(() => new Array(n).fill(0)), ci = g1.map(() => new Array(n).fill(0));
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++){
+    const re = re1[y][x]*re2[y][x] + im1[y][x]*im2[y][x];
+    const im = im1[y][x]*re2[y][x] - re1[y][x]*im2[y][x];
+    const mag = Math.hypot(re, im) + 1e-12;
+    cr[y][x] = re/mag; ci[y][x] = im/mag;
+  }
+  fft2(cr, ci, true);
+  return cr[0][0];
+}
+function runPcdiEstimate(){
+  const hint = document.getElementById("pcdiHint");
+  const say = (msg, bad) => { if (hint) hint.textContent = msg; toast(msg, !!bad); };
+  try {
+    if (!S.rawRows.length){ say("Import a file first.", true); return; }
+    const lat = S.mapping.lat, lon = S.mapping.lon, ts = S.mapping.timestamp;
+    const yieldCol = S.mapping.yieldDry || S.mapping.yieldWet;
+    if (!lat || !lon || !yieldCol){ say("Map latitude, longitude, and a yield column first.", true); return; }
+    if (!ts){ say("PCDI needs a timestamp column.", true); return; }
+    const rows = computeTransects(S.rawRows.map(r => Object.assign({}, r)), lon, lat, ts, S.mapping.velocity, S.mapping.machine);
+    const byPass = new Map();
+    for (const r of rows){
+      const t = parseTimestampToUnix(r[ts]);
+      const la = parseFloat(r[lat]), lo = parseFloat(r[lon]), yv = parseFloat(r[yieldCol]);
+      if (!isFinite(t) || !isFinite(la) || !isFinite(lo) || !isFinite(yv)) continue;
+      const id = r.__transect;
+      if (id == null) continue;
+      if (!byPass.has(id)) byPass.set(id, []);
+      byPass.get(id).push({ t, la, lo, yv, hdg: parseFloat(r[S.mapping.heading]) });
+    }
+    const passes = [...byPass.values()].filter(p => p.length >= 6);
+    if (passes.length < 2){ say("PCDI needs at least two passes.", true); return; }
+    for (const p of passes) p.sort((a,b) => a.t - b.t);
+    for (const p of passes){
+      const known = p.filter(r => isFinite(r.hdg)).length;
+      if (known >= p.length * 0.5) continue;
+      for (let i = 0; i < p.length; i++){
+        const a = p[Math.max(0, i - 1)], b = p[Math.min(p.length - 1, i + 1)];
+        const dy = (b.la - a.la) * 111320, dx = (b.lo - a.lo) * 111320 * Math.cos(a.la * Math.PI / 180);
+        if (dx * dx + dy * dy < 1) continue;
+        p[i].hdg = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+      }
+    }
+    let sw = 0, sn = 0;
+    const swathCol = S.mapping.swath;
+    if (swathCol){
+      for (const r of S.rawRows){ const w = parseFloat(r[swathCol]); if (w > 0){ sw += w; sn++; } }
+    }
+    const swathM = sn ? (sw / sn) * 0.3048 : 9;
+    // Headland points are within one header of the outside of the occupied
+    // grid, so an L-shaped field still follows the edge. What remains is
+    // scored by pairing each pass with the next pass, not the next grid cell.
+    // A cell was pairing a pass with itself, which pinned the score near 1.
+    const mplat = 111320, mplon = 111320 * Math.cos((passes[0][0].la * Math.PI) / 180);
+    const g = Math.max(3, swathM * 0.5);
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of passes) for (const r of p){
+      r.xm = r.lo * mplon; r.ym = r.la * mplat;
+      if (r.xm < minX) minX = r.xm; if (r.xm > maxX) maxX = r.xm;
+      if (r.ym < minY) minY = r.ym; if (r.ym > maxY) maxY = r.ym;
+    }
+    const nx = Math.ceil((maxX - minX) / g) + 3, ny = Math.ceil((maxY - minY) / g) + 3;
+    const occ = new Uint8Array(ny * nx);
+    const at = (x, y) => y * nx + x;
+    for (const p of passes) for (const r of p) occ[at((r.xm - minX) / g + 1 | 0, (r.ym - minY) / g + 1 | 0)] = 1;
+    const outside = new Uint8Array(ny * nx);
+    const q = [];
+    for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++){
+      if ((y === 0 || x === 0 || y === ny - 1 || x === nx - 1) && !occ[at(x, y)]){ outside[at(x, y)] = 1; q.push(at(x, y)); }
+    }
+    for (let qi = 0; qi < q.length; qi++){
+      const i = q[qi], x = i % nx, y = (i / nx) | 0;
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const xx = x + dx, yy = y + dy, j = at(xx, yy);
+        if (xx < 0 || yy < 0 || xx >= nx || yy >= ny || occ[j] || outside[j]) continue;
+        outside[j] = 1; q.push(j);
+      }
+    }
+    const dist = new Int16Array(ny * nx); dist.fill(999);
+    const dq = [];
+    for (let i = 0; i < outside.length; i++) if (outside[i]){ dist[i] = 0; dq.push(i); }
+    for (let qi = 0; qi < dq.length; qi++){
+      const i = dq[qi], x = i % nx, y = (i / nx) | 0;
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= nx || yy >= ny) continue;
+        const j = at(xx, yy);
+        if (dist[j] <= dist[i] + 1) continue;
+        dist[j] = dist[i] + 1; dq.push(j);
+      }
+    }
+    let headlandN = 0;
+    for (const p of passes) for (const r of p){
+      r.headland = dist[at((r.xm - minX) / g + 1 | 0, (r.ym - minY) / g + 1 | 0)] <= 2;
+      if (r.headland) headlandN++;
+    }
+    const interior = [];
+    for (const p of passes){
+      const inner = p.filter(r => !r.headland && isFinite(r.hdg));
+      if (inner.length < 40) continue;
+      const hs = inner.map(r => r.hdg).sort((a,b) => a - b);
+      interior.push({ pts: inner, h: hs[hs.length >> 1] % 180, n: inner.length });
+    }
+    if (interior.length < 2){ say("PCDI needs at least two interior passes.", true); return; }
+    const bins = new Map();
+    for (const f of interior){
+      const b = Math.round(f.h / 15) * 15 % 180;
+      if (!bins.has(b)) bins.set(b, []);
+      bins.get(b).push(f);
+    }
+    const binPts = b => bins.get(b).reduce((s, f) => s + f.n, 0);
+    const binKeys = [...bins.keys()].sort((a,b) => binPts(b) - binPts(a));
+    const fold = (a, b) => { const d = Math.abs(a - b) % 180; return Math.min(d, 180 - d); };
+    const take = (axis) => interior.filter(f => fold(f.h, axis) <= 35);
+    const axisA = binKeys[0];
+    let axisB = null, bestCross = -1;
+    for (const b of binKeys){
+      if (fold(b, axisA) < 50) continue;
+      const pts = binPts(b);
+      if (pts > bestCross){ bestCross = pts; axisB = b; }
+    }
+    const mainPts = take(axisA).reduce((s, f) => s + f.n, 0);
+    const axes = [axisA];
+    const fragments = [];
+    if (axisB != null){
+      const side = take(axisB);
+      const sidePts = side.reduce((s, f) => s + f.n, 0);
+      // A real second block has several passes and a real share of the field.
+      // A heading splinter or a short detached piece fails one of those.
+      if (side.length >= 4 && sidePts >= mainPts * 0.15) axes.push(axisB);
+      else fragments.push(`${Math.round(axisB)}° ${sidePts} pts`);
+    }
+    const jobs = axes.map(axis => {
+      const ang = axis * Math.PI / 180;
+      const members = take(axis);
+      const lengths = members.map(f => f.n).sort((a,b) => a - b);
+      const med = lengths[lengths.length >> 1];
+      const lines = members.filter(f => f.n >= med * 0.5).map(f => f.pts.map(r => ({
+        t: r.t, yv: r.yv,
+        cross: r.xm * Math.cos(ang) - r.ym * Math.sin(ang),
+        along: r.xm * Math.sin(ang) + r.ym * Math.cos(ang)
+      })).sort((a,b) => a.t - b.t)).filter(pts => pts.length >= 20);
+      return { axis, lines, pts: lines.reduce((s, l) => s + l.length, 0), curve: [] };
+    }).filter(j => j.lines.length >= 2);
+    if (!jobs.length){ say("PCDI found no block with two passes.", true); return; }
+    const delays = [];
+    for (let d = -25; d <= 25; d += 0.5) delays.push(Math.round(d * 2) / 2);
+    const interp = (target, pts) => {
+      let lo = 0, hi = pts.length - 1;
+      while (hi - lo > 1){ const mid = (lo + hi) >> 1; if (pts[mid].t <= target) lo = mid; else hi = mid; }
+      const span = pts[hi].t - pts[lo].t;
+      const u = span > 0 ? (target - pts[lo].t) / span : 0;
+      return pts[lo].yv + (pts[hi].yv - pts[lo].yv) * u;
+    };
+    let di = 0;
+    const step = () => {
+      const d = delays[di];
+      for (const job of jobs){
+        let minC = Infinity, minA = Infinity;
+        for (const line of job.lines) for (const r of line){
+          if (r.cross < minC) minC = r.cross; if (r.along < minA) minA = r.along;
+        }
+        const acc = new Map(), cnt = new Map(), who = new Map();
+        job.lines.forEach((line, pi) => {
+          for (const r of line){
+            const target = r.t + d;
+            if (target < line[0].t || target > line[line.length - 1].t) continue;
+            const key = ((r.along - minA) / swathM | 0) + "," + ((r.cross - minC) / swathM | 0);
+            acc.set(key, (acc.get(key) || 0) + interp(target, line));
+            cnt.set(key, (cnt.get(key) || 0) + 1);
+            if (!who.has(key)) who.set(key, new Map());
+            who.get(key).set(pi, (who.get(key).get(pi) || 0) + 1);
+          }
+        });
+        const owner = new Map();
+        for (const [key, m] of who){
+          let best = -1, bn = 0;
+          for (const [pi, n] of m) if (n > bn){ bn = n; best = pi; }
+          owner.set(key, best);
+        }
+        let s1 = 0, s2 = 0, s12 = 0, s11 = 0, s22 = 0, n = 0;
+        for (const [key, c] of cnt){
+          const parts = key.split(",");
+          const nxt = parts[0] + "," + (Number(parts[1]) + 1);
+          if (!cnt.has(nxt) || owner.get(key) === owner.get(nxt)) continue;
+          const va = acc.get(key) / c, vb = acc.get(nxt) / cnt.get(nxt);
+          s1 += va; s2 += vb; s12 += va * vb; s11 += va * va; s22 += vb * vb; n++;
+        }
+        const rsc = n > 20 ? (s12 - s1 * s2 / n) / Math.sqrt(Math.max(1e-12, (s11 - s1 * s1 / n) * (s22 - s2 * s2 / n))) : 0;
+        job.curve.push({ d, rsc: isFinite(rsc) ? rsc : 0, n });
+      }
+      di++;
+      if (hint) hint.textContent = `PCDI ${d} s (${di}/${delays.length})…`;
+      if (di < delays.length){ setTimeout(step, 0); return; }
+      for (const job of jobs){
+        job.curve.sort((a,b) => b.rsc - a.rsc);
+        job.best = job.curve[0];
+        job.edge = job.best.d <= -23 || job.best.d >= 23 || job.best.n < 40;
+      }
+      const used = jobs.filter(j => !j.edge);
+      const pool = used.length ? used : jobs;
+      const parts = jobs.map(j => `${Math.round(j.axis)}° ${j.best.d} s (${j.pts} pts, ${j.best.n} pairs${j.edge ? ", ignored" : ""})`).join(", ");
+      const w = pool.reduce((s, j) => s + j.pts, 0);
+      const raw = pool.reduce((s, j) => s + j.best.d * j.pts, 0) / w;
+      const delay = Math.round(raw * 2) / 2;
+      const input = document.getElementById("filterVal_DELAY");
+      const on = document.getElementById("filterOn_DELAY");
+      if (input) input.value = delay;
+      if (on) on.checked = true;
+      readFiltersFromUI();
+      recompute();
+      say(`PCDI ${delay} s, point-weighted average of ${pool.length} block${pool.length>1?"s":""} (${raw.toFixed(2)} before the half-second step). ${parts}. ${headlandN} headland points ignored.${fragments.length ? " Fragments ignored: " + fragments.join(", ") + "." : ""}`);
+      if (S.autoClean) finishAutoClean(jobs);
+    };
+    say("Estimating flow delay…");
+    setTimeout(step, 30);
+  } catch (err) {
+    say("Estimate failed: " + err.message, true);
+  }
+}
+
+
+function quantile(sorted, q){
+  if (!sorted.length) return NaN;
+  const i = (sorted.length - 1) * q;
+  const lo = Math.floor(i), hi = Math.ceil(i);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
+}
+function finishAutoClean(jobs){
+  S.autoClean = false;
+  const peaks = jobs.filter(j => j.best && !j.edge).map(j => j.best.d);
+  const spread = peaks.length > 1 ? Math.max(...peaks) - Math.min(...peaks) : 0;
+  if (spread > 6){
+    const input = document.getElementById("filterVal_DELAY");
+    if (input) input.value = 0;
+    readFiltersFromUI();
+    toast("Blocks disagreed by " + spread.toFixed(1) + " s, so auto clean left the delay at 0. The other filters were still set.");
+  }
+  const rows = S.filteredRows.length ? S.filteredRows : S.rawRows;
+  const ycol = S.mapping.yieldDry || S.mapping.yieldWet;
+  const vcol = S.mapping.velocity;
+  const ys = rows.map(r => parseFloat(r[ycol])).filter(isFinite).sort((a,b)=>a-b);
+  if (ys.length > 20){
+    const q10 = quantile(ys, 0.10), q99 = quantile(ys, 0.99), iqr = q99 - q10;
+    setFilter("MINY", Math.round((q10 - 0.25 * iqr) * 10) / 10);
+    setFilter("MAXY", Math.round((q99 + 0.25 * iqr) * 10) / 10);
+  }
+  const vs = vcol ? rows.map(r => parseFloat(r[vcol])).filter(isFinite).sort((a,b)=>a-b) : [];
+  if (vs.length > 20){
+    const q08 = quantile(vs, 0.08), q99 = quantile(vs, 0.99), iqr = q99 - q08;
+    setFilter("MINV", Math.round((q08 - 0.18 * iqr) * 10) / 10);
+    setFilter("MAXV", Math.round((q99 + 0.18 * iqr) * 10) / 10);
+  }
+  setFilter("OVLP", 50);
+  setFilter("LSTD", 3);
+  readFiltersFromUI();
+  recompute();
+  toast("Auto clean set delay, min/max yield, min/max velocity, 50% overlap and local std 3. Start and end pass were left off, matching AYCE.");
+}
+function setFilter(code, val){
+  S.filters[code].enabled = true;
+  S.filters[code].val = val;
+  const input = document.getElementById("filterVal_" + code);
+  const on = document.getElementById("filterOn_" + code);
+  if (input) input.value = val;
+  if (on) on.checked = true;
+}
+function runAutoClean(){
+  if (!S.rawRows.length){ toast("Import a file first.", true); return; }
+  S.autoClean = true;
+  for (const code of ["DELAY","MINY","MAXY","MINV","MAXV","OVLP","LSTD"]){
+    S.filters[code].enabled = true;
+    const on = document.getElementById("filterOn_" + code);
+    if (on) on.checked = true;
+  }
+  setFilter("OVLP", 50);
+  setFilter("LSTD", 3);
+  readFiltersFromUI();
+  runPcdiEstimate();
+}
+
 function buildFilterList(){
   const wrap = document.getElementById("filterList");
   wrap.innerHTML = "";
@@ -2456,7 +2897,9 @@ function buildFilterList(){
     const row = document.createElement("div");
     row.className = "filter-row";
     let extra = "";
-    if (code === "POS"){
+    if (code === "DELAY"){
+      extra = `<input type="number" id="filterVal_${code}" step="0.5" value="${def===null?'':def}" placeholder="${unit}"> <button type="button" class="btn small" id="btnEstimateDelay">Estimate</button>`;
+    } else if (code === "POS"){
       extra = `<button type="button" class="btn small draw-btn" data-draw="rectangle">Draw box</button>`;
     } else if (code === "MAN"){
       extra = `<button type="button" class="btn small draw-btn" data-draw="polygon">Draw polygon</button>`;
@@ -2471,6 +2914,12 @@ function buildFilterList(){
       ${extra}
     `;
     item.appendChild(row);
+    if (code === "DELAY"){
+      const hint = document.createElement("div");
+      hint.className = "hint"; hint.id = "pcdiHint";
+      hint.textContent = "Estimate shifts yield along each pass and keeps the delay where adjacent passes agree. A flat or edge peak sets the delay to 0.";
+      item.appendChild(hint);
+    }
     if (code === "POS"){
       const hint = document.createElement("div");
       hint.className = "hint"; hint.id = "posDrawHint";
@@ -2485,6 +2934,23 @@ function buildFilterList(){
     }
     wrap.appendChild(item);
   }
+  const est = document.getElementById("btnEstimateDelay");
+  if (est) est.addEventListener("click", runPcdiEstimate);
+  const auto = document.getElementById("btnAutoClean");
+  if (auto && !auto.dataset.bound){ auto.dataset.bound = "1"; auto.addEventListener("click", runAutoClean); }
+  let filterTimer = null;
+  const applyLive = () => {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(() => {
+      if (!S.rawRows.length) return;
+      readFiltersFromUI();
+      recompute();
+    }, 200);
+  };
+  wrap.querySelectorAll("input[type=checkbox], input[type=number]").forEach(el => {
+    el.addEventListener("input", applyLive);
+    el.addEventListener("change", applyLive);
+  });
   wrap.querySelectorAll("[data-draw]").forEach(b => {
     b.addEventListener("click", () => {
       if (b.dataset.draw === "rectangle") startBoxDraw();
@@ -2802,20 +3268,63 @@ async function readShapefileFiles(files){
   const shpBuf = await shpFile.arrayBuffer();
   const prjText = prjFile ? await prjFile.text() : undefined;
   const geom = shp.parseShp(shpBuf, prjText);
-  if (dbfFile){
-    const dbfBuf = await dbfFile.arrayBuffer();
-    return shp.combine([geom, shp.parseDbf(dbfBuf)]);
+  if (!dbfFile){
+    throw new Error("Attributes did not load. Select the .shp and .dbf together (or a .zip of the set). Geometry-only import is refused.");
   }
-  return { type:"FeatureCollection", features: geom.map(g => ({ type:"Feature", geometry:g, properties:{} })) };
+  const dbfBuf = await dbfFile.arrayBuffer();
+  const table = shp.parseDbf(dbfBuf).map(cleanDbfRow);
+  if (!table.length || !Object.keys(table[0]).length){
+    throw new Error("The .dbf was read but no attribute fields came through.");
+  }
+  return shp.combine([geom, table]);
+}
+function cleanDbfRow(row){
+  const out = {};
+  for (const [k, v] of Object.entries(row || {})){
+    const name = String(k).replace(/\u0000/g, "").trim();
+    if (!name) continue;
+    out[name] = typeof v === "string" ? v.replace(/\u0000/g, "").trim() : v;
+  }
+  return out;
 }
 
+function shapefileSets(files){
+  const groups = new Map();
+  for (const f of files){
+    const name = f.name;
+    const dot = name.lastIndexOf(".");
+    if (dot < 0) continue;
+    const ext = name.slice(dot).toLowerCase();
+    if (![".shp",".dbf",".shx",".prj",".cpg",".zip"].includes(ext)) continue;
+    const stem = name.slice(0, dot);
+    if (!groups.has(stem)) groups.set(stem, []);
+    groups.get(stem).push(f);
+  }
+  return [...groups.entries()].filter(([, parts]) => parts.some(f => f.name.toLowerCase().endsWith(".shp") || f.name.toLowerCase().endsWith(".zip")));
+}
+async function importShapefileSelection(files){
+  const sets = shapefileSets(files);
+  if (!sets.length) throw new Error("No .shp or .zip in that selection.");
+  const [stem, parts] = sets.sort((a,b) => b[1].length - a[1].length)[0];
+  const gj = await readShapefileFiles(parts);
+  const hasDbf = parts.some(f => f.name.toLowerCase().endsWith(".dbf") || f.name.toLowerCase().endsWith(".zip"));
+  ingestFeatureCollection(gj, stem, "Shapefile");
+  if (sets.length > 1) toast(`Folder had ${sets.length} shapefiles. Loaded ${stem}.`);
+  else if (hasDbf) toast(`Loaded ${stem} with its attribute table.`);
+}
 document.getElementById("fileShapefile").addEventListener("change", async (e) => {
   const files = [...e.target.files]; if (!files.length) return;
-  try{
-    const gj = await readShapefileFiles(files);
-    const label = files.length === 1 ? files[0].name : files.map(f=>f.name).join(" + ");
-    ingestFeatureCollection(gj, label, "Shapefile");
-  } catch(err){ toast("Shapefile import error: " + err.message, true); }
+  try{ await importShapefileSelection(files); }
+  catch(err){ toast("Shapefile import error: " + err.message, true); }
+  e.target.value = "";
+});
+document.getElementById("btnShapefileFolder").addEventListener("click", () => {
+  document.getElementById("fileShapefileDir").click();
+});
+document.getElementById("fileShapefileDir").addEventListener("change", async (e) => {
+  const files = [...e.target.files]; if (!files.length) return;
+  try{ await importShapefileSelection(files); }
+  catch(err){ toast("Shapefile import error: " + err.message, true); }
   e.target.value = "";
 });
 
@@ -2909,12 +3418,9 @@ function runPipeline({ trace=false } = {}){
     if (!f.enabled) continue;
     let next = rows;
     if (code === "DELAY"){
-      // Shifting is purely a re-index by N observations, not a
-      // unit-specific threshold — so it's meaningful to apply to the
-      // secondary yield column and Moisture at the same time, using the
-      // exact same shift, producing their own delay-corrected values.
-      const extraCols = [secondaryYieldCol, moisture].filter(Boolean);
-      next = Filters.DELAY(rows, workingYieldCol, f.val || 0, extraCols);
+      // Time shift of yield only. Moisture stays on the logged position.
+      const yieldCols = [workingYieldCol, secondaryYieldCol].filter(Boolean);
+      next = Filters.DELAY(rows, yieldCols, f.val || 0, timestamp);
     }
     else if (code === "START") next = Filters.START(rows, f.val || 0);
     else if (code === "END") next = Filters.END(rows, f.val || 0);
@@ -2927,6 +3433,8 @@ function runPipeline({ trace=false } = {}){
     else if (code === "MAXY") next = Filters.MAXY(rows, workingYieldCol, f.val);
     else if (code === "MINY") next = Filters.MINY(rows, workingYieldCol, f.val);
     else if (code === "STDY") next = Filters.STDY(rows, workingYieldCol, f.val);
+    else if (code === "OVLP") next = Filters.OVLP(rows, lat, lon, swath, f.val);
+    else if (code === "LSTD") next = Filters.LSTD(rows, lat, lon, workingYieldCol, swath, f.val);
     else if (code === "POS") next = Filters.POS(rows, lat, lon, f.bounds);
     else if (code === "MAN"){
       if (S.manPolygons.length && lat && lon){
@@ -3071,7 +3579,9 @@ function populateAttrSelect(){
   const candidates = [];
   const primary = getPrimaryYieldCol();
   if (primary) candidates.push(primary);
-  candidates.push("yield_balanced", "yield_dry_clean", "yield_wet_clean", "moisture_clean");
+  for (const c of ["yield_balanced", "yield_dry_clean", "yield_wet_clean", "moisture_clean"]){
+    if (S.filteredRows.some(r => r[c] !== undefined && r[c] !== null && r[c] !== "")) candidates.push(c);
+  }
   if (S.mapping.yieldDry && !candidates.includes(S.mapping.yieldDry)) candidates.push(S.mapping.yieldDry);
   if (S.mapping.yieldWet && !candidates.includes(S.mapping.yieldWet)) candidates.push(S.mapping.yieldWet);
   for (const c of S.numericCols) if (!candidates.includes(c)) candidates.push(c);
