@@ -2973,11 +2973,11 @@ async function load2020(file){
   const data = await res.json();
   if (!data.rows || !data.rows.length) throw new Error("The 20/20 file had no harvest points.");
   S.rawRows = data.rows;
-  S.columns = ["Longitude","Latitude","Yield_bu_ac","WetYield_bu_ac","Moisture","Timestamp","Speed_mph","Heading","Distance_ft","Flow_lb_s","AppliedDelay_s"];
-  S.numericCols = ["Yield_bu_ac","WetYield_bu_ac","Moisture","Speed_mph","Heading","Distance_ft","Flow_lb_s","AppliedDelay_s"];
+  S.columns = ["Longitude","Latitude","Yield_bu_ac","WetYield_bu_ac","Moisture","Timestamp","Speed_mph","Heading","Distance_ft","Flow_lb_s","AppliedDelay_s","Swath_ft"];
+  S.numericCols = ["Yield_bu_ac","WetYield_bu_ac","Moisture","Speed_mph","Heading","Distance_ft","Flow_lb_s","AppliedDelay_s","Swath_ft"];
   S.sourceFormat = "Precision Planting 20/20";
   S.sourceFilename = file.name;
-  S.mapping = { lon:"Longitude", lat:"Latitude", yieldDry:"Yield_bu_ac", yieldWet:"WetYield_bu_ac", primaryYield:"dry", velocity:"Speed_mph", swath:null, moisture:"Moisture", timestamp:"Timestamp", heading:"Heading", machine:null };
+  S.mapping = { lon:"Longitude", lat:"Latitude", yieldDry:"Yield_bu_ac", yieldWet:"WetYield_bu_ac", primaryYield:"dry", velocity:"Speed_mph", swath:"Swath_ft", moisture:"Moisture", timestamp:"Timestamp", heading:"Heading", machine:null };
   S.units = { yield:"bu/ac", velocity:"mph", swath:"ft", altitude:"ft" };
   finishImport();
   const note = data.note ? " " + data.note : "";
