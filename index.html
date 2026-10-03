@@ -337,8 +337,8 @@ textarea.summaryPreview{
         <div class="section">
           <h3>1. Drop the file</h3>
           <label class="dropzone" id="dropZone">
-            Drop a shapefile, a zip, or a text file
-            <input type="file" id="fileClean" accept=".zip,.shp,.dbf,.shx,.prj,.txt,.csv,.dat,.geojson,.json" multiple>
+            Drop a shapefile, a zip, a text file, or a .2020
+            <input type="file" id="fileClean" accept=".zip,.shp,.dbf,.shx,.prj,.txt,.csv,.dat,.geojson,.json,.2020" multiple>
           </label>
           <div class="hint" id="cleanFile">No field loaded. The parts of a shapefile can be chosen together.</div>
         </div>
@@ -2960,8 +2960,33 @@ function refreshCleanPanel(){
   const bar = document.getElementById("cleanBar");
   if (bar) bar.style.display = S.rawRows.length && window.innerWidth <= 860 ? "block" : "none";
 }
+async function load2020(file){
+  const clean = document.getElementById("cleanResult");
+  if (clean) clean.textContent = "Reading the 20/20 file…";
+  let res;
+  try {
+    res = await fetch("http://127.0.0.1:8765/convert", { method:"POST", body: file });
+  } catch (err) {
+    throw new Error("The 20/20 reader is not running. Close this page and open it with Open Yield Editor.");
+  }
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  if (!data.rows || !data.rows.length) throw new Error("The 20/20 file had no harvest points.");
+  S.rawRows = data.rows;
+  S.columns = ["Longitude","Latitude","Yield_bu_ac","WetYield_bu_ac","Moisture","Timestamp","Speed_mph","Heading","Distance_ft","Flow_lb_s","AppliedDelay_s"];
+  S.numericCols = ["Yield_bu_ac","WetYield_bu_ac","Moisture","Speed_mph","Heading","Distance_ft","Flow_lb_s","AppliedDelay_s"];
+  S.sourceFormat = "Precision Planting 20/20";
+  S.sourceFilename = file.name;
+  S.mapping = { lon:"Longitude", lat:"Latitude", yieldDry:"Yield_bu_ac", yieldWet:"WetYield_bu_ac", primaryYield:"dry", velocity:"Speed_mph", swath:null, moisture:"Moisture", timestamp:"Timestamp", heading:"Heading", machine:null };
+  S.units = { yield:"bu/ac", velocity:"mph", swath:"ft", altitude:"ft" };
+  finishImport();
+  const note = data.note ? " " + data.note : "";
+  if (clean) clean.textContent = `Loaded ${data.rows.length.toLocaleString()} harvest points from the 20/20 file.${note}`;
+}
 async function loadFromClean(files){
   if (!files.length) return;
+  const twenty = files.find(f => f.name.toLowerCase().endsWith(".2020"));
+  if (twenty){ await load2020(twenty); return; }
   const names = files.map(f => f.name.toLowerCase());
   if (names.some(n => n.endsWith(".shp") || n.endsWith(".zip") || n.endsWith(".dbf"))){
     await importShapefileSelection(files);
