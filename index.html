@@ -420,7 +420,8 @@ textarea.summaryPreview{
             <input type="checkbox" id="customFilterOrderEnabled">
             <span>Apply filters in the order listed below (drag <span style="letter-spacing:-2px;">⋮⋮</span> to reorder) — unchecked uses the traditional fixed USDA Yield Editor order regardless of how the list is arranged.</span>
           </label>
-          <button type="button" class="btn" id="btnAutoClean" style="margin:8px 0">Run auto clean</button>
+          <button type="button" class="btn primary" id="btnAutoClean" style="margin:8px 0">Clean this field</button>
+          <div class="hint" id="autoCleanHint">One pass, in the Yield Editor 2.0 order: flow delay, yield limits, speed limits, header overlap, then local scatter. Start and end of pass stay off. A delay the two directions cannot agree on stays at 0.</div>
           <div id="filterList"></div>
         </div>
         <button class="btn primary" id="btnApplyFilters">Apply All Filters</button>
@@ -2854,9 +2855,18 @@ function finishAutoClean(jobs){
   }
   setFilter("OVLP", 50);
   setFilter("LSTD", 3);
+  const swathCol = S.mapping.swath;
+  const sws = swathCol ? rows.map(r => parseFloat(r[swathCol])).filter(v => v > 0).sort((a,b)=>a-b) : [];
+  if (sws.length > 20) setFilter("MINS", Math.round(sws[sws.length >> 1] * 0.5 * 10) / 10);
+  setFilter("SMV", 0.2);
   readFiltersFromUI();
   recompute();
-  toast("Auto clean set delay, min/max yield, min/max velocity, 50% overlap and local std 3. Start and end pass were left off, matching AYCE.");
+  const hint = document.getElementById("filterResultHint");
+  const delay = document.getElementById("filterVal_DELAY");
+  const kept = S.filteredRows.length, total = S.rawRows.length;
+  const line = `Cleaned. Delay ${delay ? delay.value : "?"} s. Yield, speed, half-header swath, 20% speed jumps, 50% overlap and local scatter are on. ${kept.toLocaleString()} of ${total.toLocaleString()} points remain. Start and end of pass were left off.`;
+  if (hint) hint.textContent = line;
+  toast(line);
 }
 function setFilter(code, val){
   S.filters[code].enabled = true;
@@ -2869,7 +2879,7 @@ function setFilter(code, val){
 function runAutoClean(){
   if (!S.rawRows.length){ toast("Import a file first.", true); return; }
   S.autoClean = true;
-  for (const code of ["DELAY","MINY","MAXY","MINV","MAXV","OVLP","LSTD"]){
+  for (const code of ["DELAY","MINY","MAXY","MINV","MAXV","OVLP","LSTD","MINS","SMV"]){
     S.filters[code].enabled = true;
     const on = document.getElementById("filterOn_" + code);
     if (on) on.checked = true;
