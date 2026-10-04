@@ -187,10 +187,16 @@ a.link:hover{text-decoration:underline;}
 #mapwrap{flex:1; position:relative; min-width:0;}
 #map{position:absolute; inset:0; background:#0b0c08;}
 #legend{
-  position:absolute; right:14px; bottom:34px; background:var(--panel); border:1px solid var(--line);
-  border-radius:var(--radius); padding:10px 12px; z-index:500; min-width:150px;
+  position:absolute; left:14px; bottom:78px; background:var(--panel); border:1px solid var(--line);
+  border-radius:var(--radius); padding:10px 12px; z-index:500; min-width:180px; max-width:240px;
   box-shadow:0 6px 20px rgba(0,0,0,.3);
 }
+#legend label{font-size:10.5px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:4px;}
+#legend select{width:100%; margin-bottom:8px;}
+#attrSelectWrap{display:none;}
+#fieldResult{display:none !important;}
+#cleanResult.show{display:block; margin-top:12px; font-size:16px; line-height:1.35; color:var(--text);}
+#cleanResult.show b{display:block; font-size:18px; margin-bottom:4px;}
 #legend h4{font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:0 0 6px;}
 #legendBar{height:10px; border-radius:2px; background:linear-gradient(90deg,#c0392b,#e2b93b,#3fae4c);}
 #legendLabels{display:flex; justify-content:space-between; font-family:var(--mono); font-size:10.5px; color:var(--muted); margin-top:4px;}
@@ -292,7 +298,7 @@ textarea.summaryPreview{
     top:auto; bottom:14px; left:50%; max-width:94vw;
     flex-wrap:wrap; justify-content:center; font-size:11.5px;
   }
-  #legend{ right:8px; bottom:34px; min-width:0; max-width:38vw; padding:8px 9px; }
+  #legend{ left:8px; right:auto; bottom:72px; min-width:0; max-width:38vw; padding:8px 9px; }
   #legend h4{ font-size:9.5px; }
   #legendLabels{ font-size:9.5px; }
 }
@@ -361,9 +367,11 @@ textarea.summaryPreview{
           </label>
           <div class="hint" id="cleanFile">No field loaded. The parts of a shapefile can be chosen together.</div>
           <button type="button" class="btn primary big" id="btnCleanField">Clean this field</button>
+          <button type="button" class="btn" id="btnExportMain">Export</button>
           <button type="button" class="btn ghost adjust-link" id="btnAdjust">Adjust</button>
+          <button type="button" class="btn ghost adjust-link" id="btnBack" hidden>Back</button>
           <button type="button" class="btn" id="btnMore" hidden>More</button>
-          <div class="hint" id="cleanResult" hidden>The delay, the points removed, and anything left off will show here.</div>
+          <div class="hint" id="cleanResult">The delay and the points kept will show here.</div>
         </div>
         <div class="section tools-only">
           <h3>Check and send</h3>
@@ -724,15 +732,12 @@ textarea.summaryPreview{
       <button type="button" class="btn small" id="btnFinishDraw" style="display:none;">Finish polygon</button>
       <button type="button" class="btn small ghost" id="btnCancelDraw">Cancel</button>
     </div>
-    <div id="attrSelectWrap">
-      <label>Colour map by</label>
-      <select id="attrSelect"></select>
-    </div>
     <div id="compareLine"></div>
     <div id="compareBar"><span>Raw</span><input type="range" id="compareSlider" min="0" max="100" value="100" aria-label="Raw or cleaned"><span>Cleaned</span></div>
     <div id="fieldResult"><b id="fieldResultLine"></b><span id="fieldResultDetail"></span></div>
     <div id="legend">
-      <h4 id="legendTitle">Yield</h4>
+      <label for="attrSelect">Colour map by</label>
+      <select id="attrSelect"></select>
       <div id="legendBar"></div>
       <div id="legendLabels"><span id="legendMin">—</span><span id="legendMax">—</span></div>
     </div>
@@ -3254,22 +3259,40 @@ document.getElementById("fileClean").addEventListener("change", async (e) => {
 });
 document.getElementById("btnCleanField").addEventListener("click", runAutoClean);
 document.getElementById("btnCleanFieldBar").addEventListener("click", runAutoClean);
-document.getElementById("btnAdjust").addEventListener("click", () => { document.getElementById("tabs").classList.add("open"); document.getElementById("sidebar").classList.add("tools-open"); document.getElementById("btnMore").textContent = "Less"; document.querySelector('.tabbtn[data-tab="filters"]').click(); });
+function openAdjust(){
+  document.getElementById("tabs").classList.add("open");
+  document.getElementById("sidebar").classList.add("tools-open");
+  document.getElementById("btnAdjust").hidden = true;
+  document.getElementById("btnBack").hidden = false;
+  document.querySelector('.tabbtn[data-tab="filters"]').click();
+}
+function closeAdjust(){
+  document.getElementById("tabs").classList.remove("open");
+  document.getElementById("sidebar").classList.remove("tools-open");
+  document.getElementById("btnAdjust").hidden = false;
+  document.getElementById("btnBack").hidden = true;
+  document.querySelector('.tabbtn[data-tab="clean"]').click();
+}
+document.getElementById("btnAdjust").addEventListener("click", openAdjust);
+document.getElementById("btnBack").addEventListener("click", closeAdjust);
+document.getElementById("btnExportMain").addEventListener("click", () => document.getElementById("btnExportShapefile").click());
 document.getElementById("btnMore").addEventListener("click", () => {
   const tabs = document.getElementById("tabs");
   tabs.classList.toggle("open");
   document.getElementById("btnMore").textContent = tabs.classList.contains("open") ? "Less" : "More";
 });
 function showFieldResult(line, detail){
-  const box = document.getElementById("fieldResult");
+  const box = document.getElementById("cleanResult");
   if (!box) return;
-  box.style.display = "block";
-  document.getElementById("fieldResultLine").textContent = line;
-  document.getElementById("fieldResultDetail").textContent = detail || "";
+  box.classList.add("show");
+  box.innerHTML = "<b>" + line + "</b>" + (detail || "");
+  const slider = document.getElementById("compareSlider");
+  if (slider) slider.value = 100;
+  applyCompare();
 }
 function clearFieldResult(){
-  const box = document.getElementById("fieldResult");
-  if (box) box.style.display = "none";
+  const box = document.getElementById("cleanResult");
+  if (box){ box.classList.remove("show"); box.textContent = "The delay and the points kept will show here."; }
   const bar = document.getElementById("compareBar");
   if (bar) bar.style.display = "none";
   const line = document.getElementById("compareLine");
@@ -3286,10 +3309,11 @@ function applyCompare(){
   const size = map.getSize();
   const nw = map.containerPointToLayerPoint([0, 0]);
   const se = map.containerPointToLayerPoint(size);
-  const x = nw.x + size.x * (pct / 100);
+  const rawShare = (100 - pct) / 100;
+  const x = nw.x + size.x * rawShare;
   if (line){
     line.style.display = pct > 1 && pct < 99 ? "block" : "none";
-    line.style.left = (size.x * pct / 100) + "px";
+    line.style.left = (size.x * rawShare) + "px";
   }
   if (pane && rawLayer){
     pane.style.clip = "rect(" + nw.y + "px," + x + "px," + se.y + "px," + nw.x + "px)";
@@ -4070,7 +4094,8 @@ function renderPoints(){
     hi = sorted[Math.ceil(sorted.length*0.98)-1] ?? sorted[sorted.length-1];
     if (hi <= lo) hi = lo + 1;
   }
-  document.getElementById("legendTitle").textContent = attr || "—";
+  const legendTitle = document.getElementById("legendTitle");
+  if (legendTitle) legendTitle.textContent = attr || "—";
   document.getElementById("legendMin").textContent = fmtNum(lo);
   document.getElementById("legendMax").textContent = fmtNum(hi);
 
