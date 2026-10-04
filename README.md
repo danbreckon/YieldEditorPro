@@ -6,6 +6,12 @@ Dan Breckon and Cory Weber are the authors. Cory Weber wrote the original page. 
 
 The current page is `index.html` in this repo. Open that file, or the copy inside YieldEditor-with-2020.zip. The copy at <https://coryweber1988.github.io/YieldEditorPro/> is the original author's hosted page and does not have the automatic pass.
 
+## Give it away
+
+This page is free. Copy it, send it, and put it on a stick. No account, no fee, no limit on fields. A consultant can hand the file to a grower. The license is AGPLv3, so a copy that is changed and offered to others has to stay free too.
+
+The Precision Planting reader in YieldEditor-with-2020.zip is not part of this gift. That plugin is theirs. The page in this repo is the part anyone can take.
+
 ## Open a file
 
 A shapefile, a zip of a shapefile, AgLeader advanced text, a delimited text file, or GeoJSON opens in the page. A John Deere harvest shapefile needs the `.shp`, `.dbf`, and `.shx` together. The `.prj` should come with them. The page will not take the `.shp` alone.
