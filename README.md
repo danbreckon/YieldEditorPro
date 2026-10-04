@@ -26,7 +26,7 @@ Clean this field is the first action. It estimates the flow delay, then runs the
 
 The delay search uses opposing passes. Points within one header of the field edge are left out, and a short fragment is left out. Each direction block is scored on its own. The delay is the point-weighted average of those blocks, to the half second. If the blocks disagree by more than 6 seconds, the delay stays 0. A new file clears the boxes from the last field.
 
-Moisture delay and start and end of pass are not set by this pass. Hillcrest 2025 is a known miss for the delay. On a `.2020`, a delay the monitor already applied is reported, and the search still runs. Overlap stays off when the file has no header width.
+Start and end of pass are set from the seconds each pass takes to reach steady yield and speed, and to leave it. A side the passes disagree on by more than 6 seconds stays at 0. Moisture delay is not set. Hillcrest 2025 is a known miss for the delay. On a `.2020`, a delay the monitor already applied is reported, and the search still runs. Overlap stays off when the file has no header width.
 
 ## What the page can do
 
@@ -85,4 +85,3 @@ A harvest `.2020` is read by the Precision Planting ADAPT plugin, version 6.2.1,
 
 - Planting and sprayer `.2020` files, mapped as above.
 - A raw John Deere display card, once the licensed plugin can be used.
-- Start and end of pass on the automatic clean, after it has been checked on real fields.

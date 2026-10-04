@@ -33,7 +33,7 @@ const result = await YieldEditor.clean();
 - `note` — the same sentence the page shows
 - `rows` — the kept points
 
-The clean is the same pass as Clean this field: the delay search, then yield, speed, half-header swath, speed jumps, overlap, and local scatter. Moisture delay and start and end of pass are not set.
+The clean is the same pass as Clean this field: the delay search, start and end of pass, then yield, speed, half-header swath, speed jumps, overlap, and local scatter. Moisture delay is not set. Start or end stays at 0 when the passes disagree by more than 6 seconds.
 
 ## What this is not
 
