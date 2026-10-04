@@ -2947,6 +2947,7 @@ function setFilter(code, val){
   if (on) on.checked = true;
 }
 function runAutoClean(){
+  hideRead();
   if (!S.rawRows.length){ toast("Import a file first.", true); return; }
   S.autoClean = true;
   for (const code of ["DELAY","MINY","MAXY","MINV","MAXV","OVLP","LSTD","MINS","SMV"]){
@@ -3001,6 +3002,7 @@ function showRead(title, pct, left){
   if (clean) clean.textContent = title + " — " + Math.round(pct) + "% — " + left;
 }
 function hideRead(){ const box = document.getElementById("readProgress"); if (box) box.style.display = "none"; }
+document.getElementById("readProgress").addEventListener("click", hideRead);
 function post2020(file, onProgress){
   return new Promise((resolve, reject) => {
     const req = new XMLHttpRequest();
@@ -3032,14 +3034,16 @@ async function load2020(file){
   }
   let sent = false;
   let stop = false;
+  let shown = 4;
+  let eta = guess;
   const watch = (async () => {
     while (!stop){
-      await sleep(500);
+      await sleep(400);
+      if (!sent || stop) continue;
       const elapsed = (Date.now() - started) / 1000;
-      if (!sent) continue;
       let title = "Reading the 20/20 file";
       let pct = Math.min(92, 18 + elapsed / guess * 74);
-      let left = leftText(Math.max(1, guess - elapsed));
+      let leftSec = Math.max(1, guess - elapsed);
       try {
         const r = await fetch("http://127.0.0.1:8765/status");
         if (r.ok){
@@ -3048,11 +3052,16 @@ async function load2020(file){
           if (parts.length >= 3 && parts[1]){
             title = parts[1];
             pct = Math.max(pct, Number(parts[0]) || pct);
-            if (Number(parts[2])) left = leftText(Number(parts[2]));
+            const reported = Number(parts[2]);
+            if (reported > 0 && reported < leftSec + 15) leftSec = reported;
           } else if (line.startsWith("Reading the points")) title = line;
         }
       } catch {}
-      showRead(title, pct, left);
+      if (stop) return;
+      if (/^[\d,]+ points$/.test(title)) title = "Reading the points";
+      shown = Math.max(shown, Math.min(92, pct));
+      eta = Math.min(eta, leftSec);
+      showRead(title, shown, leftText(eta));
     }
   })();
   let text;
@@ -3060,11 +3069,14 @@ async function load2020(file){
     text = await post2020(file, (loaded, total) => {
       const pct = 4 + loaded / total * 14;
       const rate = loaded / Math.max(0.2, (Date.now() - started) / 1000);
-      showRead("Sending the file", pct, leftText((total - loaded) / rate + guess));
+      shown = Math.max(shown, pct);
+      eta = (total - loaded) / rate + guess * 0.85;
+      showRead("Sending the file", shown, leftText(eta));
       if (loaded >= total) sent = true;
     });
-  } finally { stop = true; hideRead(); }
-  showRead("Opening the points", 96, "a few seconds left");
+  } finally { stop = true; }
+  await watch;
+  showRead("Drawing the field", 96, "a few seconds left");
   let data;
   try { data = JSON.parse(text); }
   catch (err) { hideRead(); throw err; }
