@@ -1,28 +1,14 @@
 name: "CLA Assistant"
 
-# Requires contributors to sign the CLA (CLA.md) before a pull request can be
-# merged. Runs "CLA Assistant Lite" — https://github.com/contributor-assistant/github-action
-# The bot posts a comment on new PRs asking first-time contributors to sign;
-# they do so by replying with the exact phrase below, and the bot records the
-# signature (with GitHub username + PR number + timestamp) in the JSON file
-# at path-to-signatures, committed back into this repo.
+# Not enabled. This file is not in .github/workflows, so GitHub Actions
+# does not run it. contributor-assistant/github-action is archived.
+# Do not move this file into .github/workflows until the action is a
+# maintained release and Cory Weber and Dan Breckon have agreed who the
+# Project Owner is.
 #
-# NOTE (as of this writing): contributor-assistant/github-action has been
-# archived by its owner — the existing published version tag below still
-# works fine (GitHub Actions just pulls that tagged release), but it won't
-# receive further updates. If you'd prefer an actively-maintained fork,
-# https://github.com/ribtoks/cla-github-action is a drop-in replacement —
-# just swap the `uses:` line below to `ribtoks/cla-github-action@<version>`.
-#
-# Setup checklist before this does anything useful:
-#   1. Replace YOUR-GITHUB-USERNAME/YOUR-REPO-NAME in path-to-document below
-#      with this repo's actual path, once it's pushed to GitHub.
-#   2. Replace "coryweber1988" in allowlist below with your own GitHub
-#      username (and any bot accounts), so your own commits/PRs are never
-#      blocked waiting on your own signature.
-#   3. No extra secrets are required — the built-in GITHUB_TOKEN is enough
-#      as long as this repo's Settings → Actions → General → Workflow
-#      permissions is set to "Read and write permissions".
+# When it is enabled, point path-to-document at this repo and allow both
+# authors through. No extra secret is required if Actions has read and
+# write permission.
 
 on:
   issue_comment:
@@ -47,9 +33,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           path-to-signatures: 'signatures/cla.json'
-          path-to-document: 'https://github.com/CoryWeber1988/YieldEditorPro/blob/main/CLA.md'
-          # GitHub usernames/bots that never need to sign (repo owner, etc.)
-          allowlist: 'CoryWeber1988,dependabot[bot]'
+          path-to-document: 'https://github.com/danbreckon/YieldEditorPro/blob/main/CLA.md'
+          allowlist: 'danbreckon,CoryWeber1988,dependabot[bot]'
           branch: 'main'
           custom-notsigned-prcomment: |
             Thanks for the pull request! Before it can be merged, please read the [Contributor License Agreement](CLA.md) (or, if you're contributing on behalf of a company, the [Entity CLA](CLA-ENTITY.md)) and reply to this comment with:

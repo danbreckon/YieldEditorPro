@@ -1,0 +1,27 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+
+# Local test data / session files (avoid accidentally committing real farm data)
+/test-data/
+/sample-data/
+*.session.json
+
+# Archives that sometimes get dropped in while testing exports.
+# A plugin zip must not be committed. The exception is a fixture named keep.zip.
+*.zip
+!*/**/keep.zip
+
+# Licensed readers and plugins. Not part of this repo.
+YieldEditor-with-2020.zip
+*.exe
+*ADAPT*
+
+# Internal standards. Never commit.
+*golden-standard*
+*golden-standards*
