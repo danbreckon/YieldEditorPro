@@ -2,6 +2,8 @@
 
 A free browser page for cleaning combine yield-monitor data. Drop a file, run Clean this field, check the map, and send the cleaned file. No account. A shapefile, a zip, or a text file stays in the browser. A Precision Planting harvest `.2020` is sent only to the reader on that computer, not to a server.
 
+Dan Breckon and Cory Weber are the authors. Cory Weber wrote the original page. Dan Breckon added the automatic clean and the harvest `.2020` reader.
+
 The current page is `index.html` in this repo. Open that file, or the copy inside YieldEditor-with-2020.zip. The copy at <https://coryweber1988.github.io/YieldEditorPro/> is the original author's hosted page and does not have the automatic pass.
 
 ## Open a file
