@@ -187,7 +187,7 @@ a.link:hover{text-decoration:underline;}
 #mapwrap{flex:1; position:relative; min-width:0;}
 #map{position:absolute; inset:0; background:#0b0c08;}
 #legend{
-  position:absolute; left:14px; bottom:78px; background:var(--panel); border:1px solid var(--line);
+  position:absolute; left:14px; bottom:18px; background:var(--panel); border:1px solid var(--line);
   border-radius:var(--radius); padding:10px 12px; z-index:500; min-width:180px; max-width:240px;
   box-shadow:0 6px 20px rgba(0,0,0,.3);
 }
@@ -298,7 +298,7 @@ textarea.summaryPreview{
     top:auto; bottom:14px; left:50%; max-width:94vw;
     flex-wrap:wrap; justify-content:center; font-size:11.5px;
   }
-  #legend{ left:8px; right:auto; bottom:72px; min-width:0; max-width:38vw; padding:8px 9px; }
+  #legend{ left:8px; right:auto; bottom:14px; min-width:0; max-width:38vw; padding:8px 9px; }
   #legend h4{ font-size:9.5px; }
   #legendLabels{ font-size:9.5px; }
 }
@@ -324,7 +324,9 @@ textarea.summaryPreview{
 .drop-title{font-size:22px; color:var(--text);}
 .drop-sub{font-size:14px; color:var(--muted); max-width:220px;}
 #btnCleanField{margin-top:18px; border-radius:10px; font-size:20px; min-height:56px;}
-.adjust-link{background:none; border:none; color:var(--text); font-size:20px; text-align:left; padding:16px 4px; width:auto;}
+#btnAdjust, #btnBack{margin-top:8px; min-height:48px; font-size:18px;}
+#exportChoices{display:flex; flex-direction:column; gap:6px; margin-top:8px;}
+#exportChoices[hidden]{display:none;}
 .desk-tools{display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;}
 .desk-tools .tbtn{font-size:14px;}
 #fieldResult{bottom:86px;}
@@ -368,8 +370,14 @@ textarea.summaryPreview{
           <div class="hint" id="cleanFile">No field loaded. The parts of a shapefile can be chosen together.</div>
           <button type="button" class="btn primary big" id="btnCleanField">Clean this field</button>
           <button type="button" class="btn" id="btnExportMain">Export</button>
-          <button type="button" class="btn ghost adjust-link" id="btnAdjust">Adjust</button>
-          <button type="button" class="btn ghost adjust-link" id="btnBack" hidden>Back</button>
+          <div id="exportChoices" hidden>
+            <button type="button" class="btn" data-export="btnExportShapefile">Shapefile</button>
+            <button type="button" class="btn" data-export="btnExportCsv">CSV</button>
+            <button type="button" class="btn" data-export="btnExportAgLeader">AgLeader text</button>
+            <button type="button" class="btn" data-export="btnExportGeojson">GeoJSON</button>
+          </div>
+          <button type="button" class="btn" id="btnAdjust">Adjust</button>
+          <button type="button" class="btn" id="btnBack" hidden>Back</button>
           <button type="button" class="btn" id="btnMore" hidden>More</button>
           <div class="hint" id="cleanResult">The delay and the points kept will show here.</div>
         </div>
@@ -2398,7 +2406,7 @@ function initMap(){
   // to the bottom-left corner instead.
   map = L.map("map", { preferCanvas:true, zoomControl:false }).setView([40, -95], 4);
   map.on("move zoom resize", applyCompare);
-  L.control.zoom({ position:"bottomleft" }).addTo(map);
+  L.control.zoom({ position:"bottomright" }).addTo(map);
 
   populateBasemapSelect();
   const sel = document.getElementById("basemapSelect");
@@ -3275,7 +3283,16 @@ function closeAdjust(){
 }
 document.getElementById("btnAdjust").addEventListener("click", openAdjust);
 document.getElementById("btnBack").addEventListener("click", closeAdjust);
-document.getElementById("btnExportMain").addEventListener("click", () => document.getElementById("btnExportShapefile").click());
+document.getElementById("btnExportMain").addEventListener("click", () => {
+  const box = document.getElementById("exportChoices");
+  box.hidden = !box.hidden;
+});
+document.getElementById("exportChoices").addEventListener("click", (e) => {
+  const id = e.target && e.target.dataset && e.target.dataset.export;
+  if (!id) return;
+  document.getElementById(id).click();
+  document.getElementById("exportChoices").hidden = true;
+});
 document.getElementById("btnMore").addEventListener("click", () => {
   const tabs = document.getElementById("tabs");
   tabs.classList.toggle("open");
@@ -3309,14 +3326,13 @@ function applyCompare(){
   const size = map.getSize();
   const nw = map.containerPointToLayerPoint([0, 0]);
   const se = map.containerPointToLayerPoint(size);
-  const rawShare = (100 - pct) / 100;
-  const x = nw.x + size.x * rawShare;
+  const x = nw.x + size.x * (pct / 100);
   if (line){
     line.style.display = pct > 1 && pct < 99 ? "block" : "none";
-    line.style.left = (size.x * rawShare) + "px";
+    line.style.left = (size.x * pct / 100) + "px";
   }
   if (pane && rawLayer){
-    pane.style.clip = "rect(" + nw.y + "px," + x + "px," + se.y + "px," + nw.x + "px)";
+    pane.style.clip = "rect(" + nw.y + "px," + se.x + "px," + se.y + "px," + x + "px)";
   }
   S.previewRaw = pct < 50;
   const btn = document.getElementById("btnBeforeAfter");
