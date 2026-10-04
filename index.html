@@ -334,8 +334,8 @@ textarea.summaryPreview{
   <div id="brand">
     <span class="mark"></span>
     <h1>Yield Editor Pro</h1>
-    
   </div>
+  <button class="tbtn" id="sidebarToggle" type="button" title="Show or hide the panel">Panel</button>
   <div class="spacer"></div>
 </div>
 
@@ -2295,12 +2295,13 @@ const sidebarEl = document.getElementById("body");
 function setSidebarClosed(closed){
   sidebarEl.classList.toggle("sidebar-closed", closed);
   const btn = document.getElementById("sidebarToggle");
+  if (!btn) return;
   btn.setAttribute("aria-expanded", String(!closed));
-  btn.textContent = closed ? "☰" : "✕";
+  btn.textContent = closed ? "Panel" : "Panel";
 }
-// Start closed on phones/small tablets (map first), open on desktop (as before).
 setSidebarClosed(isMobileViewport());
-document.getElementById("sidebarToggle").addEventListener("click", () => {
+const panelBtn = document.getElementById("sidebarToggle");
+if (panelBtn) panelBtn.addEventListener("click", () => {
   setSidebarClosed(!sidebarEl.classList.contains("sidebar-closed"));
 });
 document.getElementById("sidebarBackdrop").addEventListener("click", () => setSidebarClosed(true));
