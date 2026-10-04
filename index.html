@@ -683,6 +683,8 @@ textarea.summaryPreview{
   </div>
 
   <div id="mapwrap">
+  <div id="readProgress"><b id="readTitle">Reading the 20/20 file</b><div class="pct" id="readPct">0%</div><div class="left" id="readLeft">Starting…</div><div class="bar"><span id="readBar"></span></div></div>
+
     <div id="map"></div>
     <div id="basemapSelectWrap">
       <label>Background map</label>
@@ -2973,25 +2975,41 @@ async function readerUp(){
   catch { return false; }
 }
 function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
+function leftText(seconds){
+  seconds = Math.max(0, Math.round(seconds));
+  if (seconds <= 1) return "about a second left";
+  if (seconds < 60) return "about " + seconds + " seconds left";
+  const m = Math.floor(seconds / 60), s = seconds % 60;
+  return "about " + m + " min " + s + " sec left";
+}
+function showRead(title, pct, left){
+  const box = document.getElementById("readProgress");
+  if (!box) return;
+  box.style.display = "block";
+  document.getElementById("readTitle").textContent = title;
+  document.getElementById("readPct").textContent = Math.round(pct) + "%";
+  document.getElementById("readLeft").textContent = left;
+  document.getElementById("readBar").style.width = Math.max(0, Math.min(100, pct)) + "%";
+  const clean = document.getElementById("cleanResult");
+  if (clean) clean.textContent = title + " — " + Math.round(pct) + "% — " + left;
+}
+function hideRead(){ const box = document.getElementById("readProgress"); if (box) box.style.display = "none"; }
 function post2020(file, onProgress){
   return new Promise((resolve, reject) => {
     const req = new XMLHttpRequest();
     req.open("POST", "http://127.0.0.1:8765/convert");
     req.responseType = "text";
-    req.upload.onprogress = (ev) => {
-      if (ev.lengthComputable) onProgress("Sending the file… " + Math.round(ev.loaded * 100 / ev.total) + "%");
-    };
+    req.upload.onprogress = (ev) => { if (ev.lengthComputable) onProgress(ev.loaded, ev.total); };
     req.onload = () => req.status >= 200 && req.status < 300 ? resolve(req.responseText) : reject(new Error(req.responseText || "The 20/20 reader could not read that file."));
     req.onerror = () => reject(new Error("The 20/20 reader stopped. Drop the file again."));
     req.send(file);
   });
 }
 async function load2020(file){
-  const clean = document.getElementById("cleanResult");
-  const say = (msg) => { if (clean) clean.textContent = msg; };
-  say("Reading the 20/20 file…");
+  const started = Date.now();
+  const guess = Math.max(12, file.size / (5 * 1024 * 1024));
+  showRead("Starting the 20/20 reader", 2, leftText(guess));
   if (!(await readerUp())){
-    say("Starting the 20/20 reader…");
     const frame = document.createElement("iframe");
     frame.style.display = "none";
     frame.src = "yieldeditor://start";
@@ -2999,25 +3017,44 @@ async function load2020(file){
     let up = false;
     for (let i = 0; i < 20; i++){
       await sleep(500);
+      showRead("Starting the 20/20 reader", 2 + i, leftText(guess - (Date.now() - started) / 1000));
       if (await readerUp()){ up = true; break; }
     }
     frame.remove();
-    if (!up) throw new Error("The reader did not start. Unzip YieldEditor-with-2020 and double-click Open Yield Editor once, then drop the file again.");
+    if (!up){ hideRead(); throw new Error("The reader did not start. Unzip YieldEditor-with-2020 and double-click Open Yield Editor once, then drop the file again."); }
   }
+  let sent = false;
   let stop = false;
   const watch = (async () => {
     while (!stop){
-      await sleep(700);
+      await sleep(500);
+      const elapsed = (Date.now() - started) / 1000;
+      if (!sent) continue;
+      let title = "Reading the 20/20 file";
       try {
         const r = await fetch("http://127.0.0.1:8765/status");
-        if (r.ok) say(await r.text());
+        if (r.ok){
+          const line = await r.text();
+          if (line.startsWith("Reading the points")) title = line;
+        }
       } catch {}
+      const pct = Math.min(92, 18 + elapsed / guess * 74);
+      showRead(title, pct, leftText(Math.max(1, guess - elapsed)));
     }
   })();
   let text;
-  try { text = await post2020(file, say); }
-  finally { stop = true; }
-  const data = JSON.parse(text);
+  try {
+    text = await post2020(file, (loaded, total) => {
+      const pct = 4 + loaded / total * 14;
+      const rate = loaded / Math.max(0.2, (Date.now() - started) / 1000);
+      showRead("Sending the file", pct, leftText((total - loaded) / rate + guess));
+      if (loaded >= total) sent = true;
+    });
+  } finally { stop = true; hideRead(); }
+  showRead("Opening the points", 96, "a few seconds left");
+  let data;
+  try { data = JSON.parse(text); }
+  catch (err) { hideRead(); throw err; }
   if (!data.rows || !data.rows.length) throw new Error("The 20/20 file had no harvest points.");
   S.rawRows = data.rows;
   S.columns = ["Longitude","Latitude","Yield_bu_ac","WetYield_bu_ac","Moisture","Timestamp","Speed_mph","Heading","Distance_ft","Flow_lb_s","AppliedDelay_s","Swath_ft"];
@@ -3027,7 +3064,9 @@ async function load2020(file){
   S.mapping = { lon:"Longitude", lat:"Latitude", yieldDry:"Yield_bu_ac", yieldWet:"WetYield_bu_ac", primaryYield:"dry", velocity:"Speed_mph", swath:"Swath_ft", moisture:"Moisture", timestamp:"Timestamp", heading:"Heading", machine:null };
   S.units = { yield:"bu/ac", velocity:"mph", swath:"ft", altitude:"ft" };
   finishImport();
+  hideRead();
   const note = data.note ? " " + data.note : "";
+  const clean = document.getElementById("cleanResult");
   if (clean) clean.textContent = `Loaded ${data.rows.length.toLocaleString()} harvest points from the 20/20 file.${note}`;
 }
 async function loadFromClean(files){
