@@ -1,110 +1,76 @@
 # Yield Editor Pro — Web
 
-A free, browser-based tool for cleaning combine yield-monitor data — importing raw yield files, correcting machine/date/moisture calibration drift, filtering out bad points, truing the result up to a known scale-ticket total, and exporting cleaned data or an interpolated yield map. It's a single self-contained HTML file: no install, no account, no server, and no data ever leaves your browser.
+A free browser page for cleaning combine yield-monitor data. Drop a file, run Clean this field, check the map, and send the cleaned file. No account. A shapefile, a zip, or a text file stays in the browser. A Precision Planting harvest `.2020` is sent only to the reader on that computer, not to a server.
 
-**[Launch the tool »] https://coryweber1988.github.io/YieldEditorPro/
+The current page is `index.html` in this repo. Open that file, or the copy inside YieldEditor-with-2020.zip. The copy at <https://coryweber1988.github.io/YieldEditorPro/> is the original author's hosted page and does not have the automatic pass.
 
+## Open a file
 
+A shapefile, a zip of a shapefile, AgLeader advanced text, a delimited text file, or GeoJSON opens in the page. A John Deere harvest shapefile needs the `.shp`, `.dbf`, and `.shx` together. The `.prj` should come with them. The page will not take the `.shp` alone.
 
----
-
+A Precision Planting harvest `.2020` needs the local reader. Extract YieldEditor-with-2020.zip and double-click Open Yield Editor, not the page. The steps are in [Read-me-2020.txt](Read-me-2020.txt). Planting and sprayer `.2020` files are not read yet. A raw John Deere display card is not read yet. The harvest shapefile that display writes is the path that works today.
 
 ## Automatic clean
 
-Clean this field runs the automatic pass and writes the result into the filter boxes. The flow delay is estimated from opposing passes, with the field edge and short fragments left out. If the direction blocks disagree by more than 6 seconds, the delay stays 0. Moisture delay and start/end pass delay are not set by this pass.
+Clean this field is the first action. It estimates the flow delay, then runs the other automatic cuts, and writes the result into the filter boxes. Adjust is there if a box needs to move.
 
-A shapefile, a zip, or a text file opens in the page. A Precision Planting .2020 file needs the local reader. Extract YieldEditor-with-2020.zip and double-click Open Yield Editor, not the page. The steps are in [Read-me-2020.txt](Read-me-2020.txt).
+The delay search uses opposing passes. Points within one header of the field edge are left out, and a short fragment is left out. Each direction block is scored on its own. The delay is the point-weighted average of those blocks, to the half second. If the blocks disagree by more than 6 seconds, the delay stays 0. A new file clears the boxes from the last field.
 
-## Features
+Moisture delay and start and end of pass are not set by this pass. Hillcrest 2025 is a known miss for the delay. On a `.2020`, a delay the monitor already applied is reported, and the search still runs. Overlap stays off when the file has no header width.
 
-- **Import** — AgLeader Advanced Text, delimited CSV/TXT/DAT with a header row, GeoJSON, and Shapefiles (zipped or loose `.shp`/`.dbf`/`.shx`/`.prj`). Auto-detects common column names, with manual override.
-- **Column mapping** — separate, independently-optional Dry/Processed Yield and Wet/Unprocessed Yield columns, so monitors that log a raw flow-rate signal alongside (or instead of) a per-area rate are both supported.
-- **Balance** — date balancing and machine balancing (mean-ratio scaling against a base group), plus moisture-ratio-based balancing for a machine whose moisture sensor is out of calibration.
-- **Filters** — the standard USDA Yield Editor filter set (grain-flow delay, start/end pass delay, min/max velocity, smooth velocity, min swath, min/max yield, std. deviation of yield, position box, manual polygon exclusion), each independently toggleable. Filters can run in the traditional fixed order, or you can drag them into a custom order and apply them that way instead.
-- **Post-Cal** — a final single-factor scale-up against a real-world total (scale ticket, elevator receipt, weigh-wagon reading).
-- **Boundary & GeoTIFF export** — import a field boundary to clip a GeoTIFF raster export, interpolated with either Inverse Distance Weighting (IDW) or Ordinary Kriging.
-- **Export** — CSV, GeoJSON, Shapefile (zipped), and AgLeader Text, with a choice between a **Full** column set (original + cleaned columns) or a **Streamlined** column set (just the cleaned wet/dry/moisture values, written back under the original column names, so the output's structure closely matches the source file's).
-- **Session save/load** — save your column mapping, filter, balance, and Post-Cal settings as a small JSON file to reuse on a similar dataset later.
-- **Summary report** — a downloadable Markdown or HTML record of the source file, mapping, every pipeline stage's record count, balancing/calibration factors, and any GeoTIFF exports made.
+## What the page can do
+
+- Import AgLeader advanced text, delimited CSV, TXT, or DAT with a header row, GeoJSON, and shapefiles. Common column names are detected. The mapping can be overridden.
+- Dry yield and wet yield are separate columns, so a file with a flow rate instead of a per-area rate can still be mapped.
+- Balance by date, by machine, and by moisture, against a base group.
+- The USDA Yield Editor filter set: flow delay, start and end of pass, min and max speed, smooth speed, min swath, min and max yield, local standard deviation, a position box, and a drawn exclusion. The fixed order or a dragged order can be used.
+- Post-cal scales the cleaned file to a scale ticket, an elevator receipt, or a weigh-wagon total.
+- A boundary can clip a GeoTIFF export. The raster is inverse distance or ordinary kriging.
+- Export CSV, GeoJSON, a zipped shapefile, or AgLeader text. Full columns, or the cleaned values written back under the original names.
+- Save the mapping, filters, balance, and post-cal as a small JSON file and load it on a similar file later.
+- A summary can be downloaded as Markdown or HTML.
+
+## Not in yet
+
+- A planting `.2020` and a sprayer `.2020`. When those are added, the default map is one point per second for the whole implement, with a per-row layer behind it. The first sprayer layer is applied rate.
+- A raw John Deere display card. The plugin has to be licensed before that drop can work. Until then, use the harvest shapefile.
 
 ## Getting started
 
-There's nothing to install. Either:
+For a shapefile or a text file, download `index.html` and open it in Chrome, Firefox, Edge, or Safari. Nothing else is installed. The page loads Leaflet, PapaParse, JSZip, and shp.js from cdnjs the first time, so that first open needs a network. The yield file stays in the browser.
 
-- **Use the hosted version** at the link above, or
-- **Run it locally** — download `index.html` from this repo and open it in any modern browser (Chrome, Firefox, Edge, Safari).
+For a harvest `.2020`, use the zip and [Read-me-2020.txt](Read-me-2020.txt). The page alone cannot read that format.
 
-The app itself runs entirely client-side — your data is processed in your browser and is never uploaded anywhere. It does load a few JavaScript libraries (Leaflet for mapping, PapaParse for CSV parsing, JSZip for zipped Shapefile export, shp.js for reading Shapefiles) from a public CDN (cdnjs.cloudflare.com), so an internet connection is needed the first time the page loads in a session, even though your yield data itself stays local.
+## Using it
 
-## Hosting on GitHub Pages
+1. Drop the file.
+2. Clean this field. The result line names the delay, the cuts that ran, and how many points remain.
+3. Check the map. Adjust is there if a cut needs to move. Show the file before cleaning compares the raw file.
+4. Send the shapefile, or export another format from the export tab.
 
-This repo is set up to be served directly by GitHub Pages, no build step required:
-
-1. Push this repo to GitHub (see below if you haven't already).
-2. In the repo, go to **Settings → Pages**.
-3. Under **Build and deployment → Source**, choose **Deploy from a branch**.
-4. Set **Branch** to `main` (or whichever branch you push to) and folder to **/ (root)**, then **Save**.
-5. GitHub will publish the site at `https://YOUR-GITHUB-USERNAME.github.io/YOUR-REPO-NAME/` within a minute or two — because the tool is `index.html` at the repo root, that URL loads it directly.
-6. Come back and update the link at the top of this README once it's live.
-
-If you'd rather push from the command line:
-
-```bash
-git init
-git add .
-git commit -m "Initial commit — Yield Editor Pro Web"
-git branch -M main
-git remote add origin https://github.com/CoryWeber1988/YieldEditorPro/.git
-git push -u origin main
-```
-
-Then enable Pages as described above.
-
-## Usage guide
-
-The tabs run roughly in the order you'd use them:
-
-1. **Import** your data and map its columns (Longitude/Latitude are required; Timestamp and Machine ID unlock most of the rest of the tool).
-2. **Balance** out machine/date/moisture calibration differences, if needed.
-3. **Filters** — enable and configure the filters you want, then **Apply All Filters**.
-4. **Post-Cal** — optionally true the result up to a known scale total.
-5. **Boundary** — optionally import a field boundary.
-6. **Export** — download cleaned data (CSV / GeoJSON / Shapefile / AgLeader Text) and/or a GeoTIFF raster.
-7. **Summary** — review and download a record of everything the pipeline did.
-
-Re-running any tab's Apply button recomputes the whole pipeline in order — you don't need to reapply earlier tabs after changing a later one. The in-app **Help** tab has a full walkthrough of every option.
+The other tabs are still there: import and column mapping, balance, the individual filters, post-cal, a boundary, and the summary.
 
 ## Attribution — USDA Yield Editor
 
-The filter/balance/calibrate workflow and terminology this tool follows — Start/End Pass Delay, Grain Flow Delay, Smooth Velocity, Std. Deviation of Yield, and the rest of the filter set — come from the original **Yield Editor** desktop software developed by USDA's Agricultural Research Service (ARS), Cropping Systems and Water Quality Research Unit, Columbia, Missouri, as part of its precision-agriculture research program.
-
-This project is a separate, independent web reimplementation built to work from a browser with no install. **It is not official USDA software and is not endorsed by or affiliated with USDA/ARS.**
-
-Official USDA Yield Editor download and documentation: [ars.usda.gov — Yield Editor](https://www.ars.usda.gov/research/software/download/?softwareid=370&modecode=50-70-10-00). As software produced by the U.S. federal government, the original Yield Editor is generally in the public domain within the United States; see the disclaimer bundled with that official download for its exact terms, and please credit "USDA-ARS Yield Editor" when referencing the underlying methodology.
-
-## Developer & contact
-
-Built by **Cory Weber** ([Cory Weber Ag Tech](https://github.com/CoryWeber1988), developed with the assistance of Claude (Anthropic). For questions, bug reports, or feature requests, contact **coryweber1988@gmail.com**, or open an [issue](../../issues) on this repo.
-
-## Contributing
-
-Contributions, bug reports, and feature suggestions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+The filter, balance, and calibrate workflow, and the names of the cuts, come from Yield Editor, written by USDA Agricultural Research Service, Cropping Systems and Water Quality Research Unit, Columbia, Missouri. The paper this page follows is Sudduth and Drummond, 2007, Agronomy Journal 99:1471–1482. The delay search follows the later pass-to-pass method. This project is not a USDA product, and it is not endorsed by USDA.
 
 ## License
 
-This project is licensed under the [GNU Affero General Public License v3.0 (AGPLv3)](LICENSE). In short: anyone can use, modify, and redistribute it — including commercially — but any distributed modified version, **and any modified version made available to users over a network** (e.g. a hosted/SaaS fork), must also make its complete source code available under AGPLv3. This is meant to close off the "quietly turn it into a closed, hosted product" path while still allowing commercial use. See the [Attribution](#attribution--usda-yield-editor) section above regarding the underlying USDA methodology this tool implements, which is separate from this project's own AGPLv3 license.
+AGPLv3. See [LICENSE](LICENSE). The USDA method named above is separate from that license.
 
 ## Acknowledgments
 
-Built with these open-source libraries, loaded from [cdnjs](https://cdnjs.com/):
+Loaded from [cdnjs](https://cdnjs.com/):
 
-- [Leaflet](https://leafletjs.com/) — interactive map
-- [PapaParse](https://www.papaparse.com/) — CSV parsing
-- [JSZip](https://stuk.github.io/jszip/) — zipped Shapefile export
-- [shp.js](https://github.com/calvinmetcalf/shapefile-js) — Shapefile import
+- [Leaflet](https://leafletjs.com/) for the map
+- [PapaParse](https://www.papaparse.com/) for delimited text
+- [JSZip](https://stuk.github.io/jszip/) for a zipped shapefile
+- [shp.js](https://github.com/calvinmetcalf/shapefile-js) for shapefile import
 
-## Roadmap of Features
+A harvest `.2020` is read by the Precision Planting ADAPT plugin, version 6.2.1, inside the local reader. That plugin is not part of this repo.
 
-Planned feature enhancements and additions for the tool are:
+## Roadmap
 
-- potential use of ADAPT framework at https://github.com/AgGateway-ADAPT to output files supported by online grower facing platforms.  Not all platforms will accept shapefile or CSV which may limit growers who would like this data back within their regular tools
+- Planting and sprayer `.2020` files, mapped as above.
+- A raw John Deere display card, once the licensed plugin can be used.
+- Start and end of pass on the automatic clean, after it has been checked on real fields.

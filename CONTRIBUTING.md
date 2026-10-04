@@ -19,7 +19,7 @@ Open an issue describing the use case — what you're trying to accomplish, and 
 ## Submitting changes
 
 1. Fork the repo and create a branch off `main`.
-2. This is a single self-contained `index.html` file — there's no build step, so you can open it directly in a browser to test your changes.
+2. The page is a single `index.html` file, so open it in a browser to test. The harvest `.2020` reader is a separate local program and is not in this repo. A change to the page can be tested with a shapefile. A change to the reader needs the zip.
 3. Before opening a pull request:
    - Check the browser console for errors on a real (or realistic sample) dataset, covering the Import → Balance → Filters → Post-Cal → Boundary → Export flow if your change touches the pipeline.
    - If you changed the filter set, balancing, calibration, or export logic, please test with a small file that has GPS/timestamp/yield columns representative of a real yield monitor.
@@ -36,4 +36,4 @@ This project is licensed under AGPLv3 (see [LICENSE](LICENSE)). By submitting a 
 
 ## Questions
 
-Open an issue, or reach out to Cory Weber at coryweber1988@gmail.com.
+Open an issue on this repo. The original author is Cory Weber, coryweber1988@gmail.com.

@@ -10,8 +10,13 @@ All notable changes to this project are documented here. Dates are in `YYYY-MM-D
 - A new file clears the filter boxes from the last field.
 - A Precision Planting .2020 file can be read by a local reader that ships beside the page. The page itself cannot read that format. See Read-me-2020.txt.
 
+### Changed
+- The read progress sits in the middle of the map, with the percent and the time left. It closes when the field is drawn. Clicking it also closes it.
+- The docs now match the page: Clean this field is the first action, a `.2020` is harvest only, and a raw John Deere card is not read.
+
 ### Known
 - Hillcrest 2025 is a miss for the delay estimate. Moisture delay and start/end pass delay are not set by the automatic pass.
+- A `.2020` read is harvest only. Planting and sprayer files are not read yet. A raw John Deere display card is not read. Overlap stays off when the file has no header width.
 
 ## [2026-10-02]
 

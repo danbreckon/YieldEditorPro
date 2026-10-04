@@ -2,6 +2,7 @@ Yield Editor Pro — opening a Precision Planting .2020 file
 
 A shapefile, a zip, or a text file opens in the page by itself.
 A .2020 file does not. The reader is a separate program. It has to be registered once.
+This reader is for a harvest file. A planting file and a sprayer file are not read yet.
 
 1. Right-click YieldEditor-with-2020.zip and choose Extract All.
 2. Open the new folder.
@@ -11,8 +12,11 @@ A .2020 file does not. The reader is a separate program. It has to be registered
 4. Drop the .2020 on that page.
 5. If Windows asks to open Yield2020, allow it.
 
+A box in the middle of the map shows the percent and the time left.
+It closes when the field is drawn. Click the box to close it early.
 The harvest points load. Clean this field runs the same pass as a shapefile.
 A delay the monitor already applied is reported. The search still runs.
+If the file has no header width, overlap stays off.
 
 Open Yield Editor sits next to YieldEditorPro.html and Yield2020.exe.
 If the folder only has the page, the zip was not fully extracted.
