@@ -12,6 +12,8 @@ This page is free. Copy it, send it, and put it on a stick. No account, no fee, 
 
 The Precision Planting reader in YieldEditor-with-2020.zip is not part of this gift. That plugin is theirs. The page in this repo is the part anyone can take.
 
+The page does not ask for money. If the work saved you a night and you want to pay Dan Breckon for it, open an issue on this repo and say so. He will send the way to pay. Paying does not unlock a feature.
+
 ## Open a file
 
 A shapefile, a zip of a shapefile, AgLeader advanced text, a delimited text file, or GeoJSON opens in the page. A John Deere harvest shapefile needs the `.shp`, `.dbf`, and `.shx` together. The `.prj` should come with them. The page will not take the `.shp` alone.
