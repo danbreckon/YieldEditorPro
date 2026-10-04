@@ -3036,6 +3036,7 @@ function post2020(file, onProgress){
   });
 }
 async function load2020(file){
+  clearFieldResult();
   const started = Date.now();
   const guess = Math.max(12, file.size / (5 * 1024 * 1024));
   showRead("Starting the 20/20 reader", 2, leftText(guess));
@@ -3116,6 +3117,7 @@ async function load2020(file){
   if (clean) clean.textContent = `Loaded ${data.rows.length.toLocaleString()} harvest points from the 20/20 file.${note}`;
 }
 async function loadFromClean(files){
+  clearFieldResult();
   if (!files.length) return;
   const twenty = files.find(f => f.name.toLowerCase().endsWith(".2020"));
   if (twenty){ await load2020(twenty); return; }
@@ -3180,6 +3182,17 @@ function showFieldResult(line, detail){
   box.style.display = "block";
   document.getElementById("fieldResultLine").textContent = line;
   document.getElementById("fieldResultDetail").textContent = detail || "";
+}
+function clearFieldResult(){
+  const box = document.getElementById("fieldResult");
+  if (box) box.style.display = "none";
+  const bar = document.getElementById("compareBar");
+  if (bar) bar.style.display = "none";
+  const line = document.getElementById("compareLine");
+  if (line) line.style.display = "none";
+  const slider = document.getElementById("compareSlider");
+  if (slider) slider.value = 100;
+  if (rawLayer){ map.removeLayer(rawLayer); rawLayer = null; }
 }
 function applyCompare(){
   const slider = document.getElementById("compareSlider");
@@ -3668,6 +3681,7 @@ function resetYieldFilters(){
   if (hint) hint.textContent = "";
 }
 function finishImport(){
+  clearFieldResult();
   resetYieldFilters();
   document.getElementById("importStatusSection").style.display = "block";
   document.getElementById("stFile").textContent = S.sourceFilename;
