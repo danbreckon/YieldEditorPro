@@ -213,7 +213,7 @@ a.link:hover{text-decoration:underline;}
 #basemapSelectWrap label{font-size:10.5px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:4px;}
 #basemapSelect{min-width:190px;}
 
-#statusbar{
+#statusbar{display:none;
   flex:0 0 auto; background:var(--panel); border-top:1px solid var(--line); padding:6px 16px;
   display:flex; gap:18px; align-items:center; font-family:var(--mono); font-size:11.5px; color:var(--muted);
 }
@@ -3285,17 +3285,23 @@ function applyCompare(){
   const line = document.getElementById("compareLine");
   const pane = map.getPane("rawPane");
   const pct = slider ? Number(slider.value) : 100;
+  const size = map.getSize();
+  const nw = map.containerPointToLayerPoint([0, 0]);
+  const se = map.containerPointToLayerPoint(size);
+  const x = nw.x + size.x * (pct / 100);
   if (line){
     line.style.display = pct > 1 && pct < 99 ? "block" : "none";
-    line.style.left = pct + "%";
+    line.style.left = (size.x * pct / 100) + "px";
   }
-  if (!pane || !rawLayer) return;
-  pane.style.clipPath = pct >= 99 ? "inset(0 0 0 100%)" : "inset(0 " + (100 - pct) + "% 0 0)";
+  if (pane && rawLayer){
+    pane.style.clip = "rect(" + nw.y + "px," + x + "px," + se.y + "px," + nw.x + "px)";
+  }
   S.previewRaw = pct < 50;
   const btn = document.getElementById("btnBeforeAfter");
   if (btn) btn.textContent = pct < 50 ? "Show the cleaned field" : "Show the file before cleaning";
 }
 document.getElementById("compareSlider").addEventListener("input", applyCompare);
+map.on("move zoom resize", applyCompare);
 document.getElementById("btnBeforeAfter").addEventListener("click", showBeforeAfter);
 document.getElementById("btnSendShapefile").addEventListener("click", () => document.getElementById("btnExportShapefile").click());
 document.getElementById("scaleTicket").addEventListener("input", refreshCleanPanel);
@@ -4783,12 +4789,6 @@ function applyFiltersToUI(){
    --------------------------------------------------------------- */
 initMap();
 
-</script>
-
-
-</body>
-</html>
-
 window.YieldEditor = {
   version: "0.3",
   load(rows, mapping){
@@ -4812,3 +4812,9 @@ window.YieldEditor = {
     });
   }
 };
+
+</script>
+
+
+</body>
+</html>
