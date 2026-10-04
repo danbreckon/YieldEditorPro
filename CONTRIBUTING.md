@@ -36,4 +36,4 @@ This project is licensed under AGPLv3 (see [LICENSE](LICENSE)). By submitting a 
 
 ## Questions
 
-Open an issue on this repo. The authors are Dan Breckon and Cory Weber. Cory Weber, coryweber1988@gmail.com, wrote the original page.
+Open an issue on this repo. The authors are Dan Breckon and Cory Weber. Cory Weber, coryweber1988@gmail.com, wrote the original page. Dan Breckon wrote the PCDI flow-delay search in this project.

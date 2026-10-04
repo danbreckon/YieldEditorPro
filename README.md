@@ -2,7 +2,7 @@
 
 A free browser page for cleaning combine yield-monitor data. Drop a file, run Clean this field, check the map, and send the cleaned file. No account. A shapefile, a zip, or a text file stays in the browser. A Precision Planting harvest `.2020` is sent only to the reader on that computer, not to a server.
 
-Dan Breckon and Cory Weber are the authors. Cory Weber wrote the original page. Dan Breckon added the automatic clean and the harvest `.2020` reader.
+Dan Breckon and Cory Weber are the authors. Cory Weber wrote the original page. Dan Breckon wrote the automatic clean, the PCDI flow-delay search in this project, and the harvest `.2020` reader.
 
 The current page is `index.html` in this repo. Open that file, or the copy inside YieldEditor-with-2020.zip. The copy at <https://coryweber1988.github.io/YieldEditorPro/> is the original author's hosted page and does not have the automatic pass.
 
@@ -54,7 +54,7 @@ The other tabs are still there: import and column mapping, balance, the individu
 
 ## Attribution — USDA Yield Editor
 
-The filter, balance, and calibrate workflow, and the names of the cuts, come from Yield Editor, written by USDA Agricultural Research Service, Cropping Systems and Water Quality Research Unit, Columbia, Missouri. The paper this page follows is Sudduth and Drummond, 2007, Agronomy Journal 99:1471–1482. The delay search follows the later pass-to-pass method. This project is not a USDA product, and it is not endorsed by USDA.
+The filter, balance, and calibrate workflow, and the names of the cuts, come from Yield Editor, written by USDA Agricultural Research Service, Cropping Systems and Water Quality Research Unit, Columbia, Missouri. The paper this page follows is Sudduth and Drummond, 2007, Agronomy Journal 99:1471–1482. The flow-delay search in this project is Dan Breckon's implementation of PCDI, the pass-to-pass method in Lee, Sudduth, Drummond, and Chung, 2012. The method is theirs. The code here is his. This project is not a USDA product, and it is not endorsed by USDA.
 
 ## License
 

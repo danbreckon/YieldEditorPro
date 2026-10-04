@@ -6,7 +6,7 @@ All notable changes to this project are documented here. Dates are in `YYYY-MM-D
 
 ### Added
 - Clean this field. One action runs the automatic pass: flow delay, then the other automatic cuts. The result is written into the filter boxes. Adjust is there if a box needs to move.
-- Flow-delay estimate. Passes are grouped by direction. Points within one header of the field edge are left out, and a short fragment is left out. Each block is scored on its own. The delay is the point-weighted average of the blocks, to the half second. If the blocks disagree by more than 6 seconds, the delay stays 0.
+- Flow-delay estimate, written by Dan Breckon. This is his PCDI implementation for this project, after Lee, Sudduth, Drummond, and Chung, 2012. Passes are grouped by direction. Points within one header of the field edge are left out, and a short fragment is left out. Each block is scored on its own. The delay is the point-weighted average of the blocks, to the half second. If the blocks disagree by more than 6 seconds, the delay stays 0.
 - A new file clears the filter boxes from the last field.
 - A Precision Planting .2020 file can be read by a local reader that ships beside the page. The page itself cannot read that format. See Read-me-2020.txt.
 
