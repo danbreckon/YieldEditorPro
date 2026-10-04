@@ -298,7 +298,14 @@ textarea.summaryPreview{
   #legend h4{ font-size:9.5px; }
   #legendLabels{ font-size:9.5px; }
 }
-</style>
+
+    #readProgress { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:5000; width:min(480px, 88vw); background:rgba(10,16,14,.94); color:#f4f7f2; border:1px solid rgba(255,255,255,.2); border-radius:16px; padding:26px 28px; display:none; box-shadow:0 16px 48px rgba(0,0,0,.45); }
+    #readProgress b { display:block; font-size:22px; line-height:1.3; margin-bottom:10px; }
+    #readProgress .pct { font-size:48px; font-weight:700; letter-spacing:-.03em; }
+    #readProgress .left { font-size:20px; margin:8px 0 16px; color:#d7e0d8; }
+    #readProgress .bar { height:16px; background:rgba(255,255,255,.16); border-radius:8px; overflow:hidden; }
+    #readProgress .bar span { display:block; height:100%; width:0; background:#b6d36a; }
+  </style>
 </head>
 <body data-theme="dark">
 
