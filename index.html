@@ -313,23 +313,30 @@ textarea.summaryPreview{
     #readProgress .left { font-size:20px; margin:8px 0 16px; color:#d7e0d8; }
     #readProgress .bar { height:16px; background:rgba(255,255,255,.16); border-radius:8px; overflow:hidden; }
     #readProgress .bar span { display:block; height:100%; width:0; background:#b6d36a; }
-  </style>
+  
+#brand h1{font-size:22px;}
+.tools-only{display:none;}
+#sidebar.tools-open .tools-only{display:block;}
+.first-look .dropzone{min-height:168px; border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; border-width:1.5px;}
+.drop-title{font-size:22px; color:var(--text);}
+.drop-sub{font-size:14px; color:var(--muted); max-width:220px;}
+#btnCleanField{margin-top:18px; border-radius:10px; font-size:20px; min-height:56px;}
+.adjust-link{background:none; border:none; color:var(--text); font-size:20px; text-align:left; padding:16px 4px; width:auto;}
+.desk-tools{display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;}
+.desk-tools .tbtn{font-size:14px;}
+#fieldResult{bottom:86px;}
+#compareBar{bottom:22px;}
+</style>
 </head>
 <body data-theme="dark">
 
 <div id="topbar">
-  <button class="tbtn" id="sidebarToggle" title="Show/hide panel" aria-expanded="true" aria-controls="sidebar">☰</button>
   <div id="brand">
     <span class="mark"></span>
     <h1>Yield Editor Pro</h1>
-    <span class="tag">Web</span>
+    
   </div>
   <div class="spacer"></div>
-  <button class="tbtn" id="btnSaveSession" title="Save session settings (.json)">Save Session</button>
-  <label class="tbtn" title="Load session settings (.json)">Load Session
-    <input type="file" id="loadSessionInput" accept=".json,.yesession" style="display:none;">
-  </label>
-  <button class="tbtn" id="themeToggle" title="Toggle theme">◐</button>
 </div>
 
 <div id="body">
@@ -349,23 +356,20 @@ textarea.summaryPreview{
     <div id="panels">
       <!-- ============ IMPORT ============ -->
       <div class="panel active" id="panel-clean">
-        <div class="section">
-          <h3>1. Drop the file</h3>
+        <div class="section first-look">
           <label class="dropzone" id="dropZone">
-            Drop a shapefile, a zip, a text file, or a .2020
+            <span class="drop-title">Drop the field</span>
+            <span class="drop-sub">A shapefile, a zip, a text file, or a .2020</span>
             <input type="file" id="fileClean" accept=".zip,.shp,.dbf,.shx,.prj,.txt,.csv,.dat,.geojson,.json,.2020" multiple>
           </label>
           <div class="hint" id="cleanFile">No field loaded. The parts of a shapefile can be chosen together.</div>
-        </div>
-        <div class="section">
-          <h3>2. Clean</h3>
           <button type="button" class="btn primary big" id="btnCleanField">Clean this field</button>
-          <div class="hint" id="cleanResult">The delay, the points removed, and anything left off will show here.</div>
-          <button type="button" class="btn" id="btnAdjust">Adjust the cuts</button>
-          <button type="button" class="btn" id="btnMore">More</button>
+          <button type="button" class="btn ghost adjust-link" id="btnAdjust">Adjust</button>
+          <button type="button" class="btn" id="btnMore" hidden>More</button>
+          <div class="hint" id="cleanResult" hidden>The delay, the points removed, and anything left off will show here.</div>
         </div>
-        <div class="section">
-          <h3>3. Check and send</h3>
+        <div class="section tools-only">
+          <h3>Check and send</h3>
           <button type="button" class="btn" id="btnBeforeAfter">Show the file before cleaning</button>
           <div class="field">
             <label>Scale ticket, bu/ac</label>
@@ -373,6 +377,13 @@ textarea.summaryPreview{
           </div>
           <div class="hint" id="ticketResult"></div>
           <button type="button" class="btn primary" id="btnSendShapefile">Send shapefile</button>
+          <div class="desk-tools">
+            <button class="tbtn" id="btnSaveSession" type="button">Save session</button>
+            <label class="tbtn">Load session
+              <input type="file" id="loadSessionInput" accept=".json,.yesession" style="display:none;">
+            </label>
+            <button class="tbtn" id="themeToggle" type="button" title="Toggle theme">Theme</button>
+          </div>
         </div>
       </div>
 
@@ -3244,7 +3255,7 @@ document.getElementById("fileClean").addEventListener("change", async (e) => {
 });
 document.getElementById("btnCleanField").addEventListener("click", runAutoClean);
 document.getElementById("btnCleanFieldBar").addEventListener("click", runAutoClean);
-document.getElementById("btnAdjust").addEventListener("click", () => { document.getElementById("tabs").classList.add("open"); document.getElementById("btnMore").textContent = "Less"; document.querySelector('.tabbtn[data-tab="filters"]').click(); });
+document.getElementById("btnAdjust").addEventListener("click", () => { document.getElementById("tabs").classList.add("open"); document.getElementById("sidebar").classList.add("tools-open"); document.getElementById("btnMore").textContent = "Less"; document.querySelector('.tabbtn[data-tab="filters"]').click(); });
 document.getElementById("btnMore").addEventListener("click", () => {
   const tabs = document.getElementById("tabs");
   tabs.classList.toggle("open");
