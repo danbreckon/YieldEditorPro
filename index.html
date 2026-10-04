@@ -82,7 +82,8 @@ button, select, input{font-family:var(--sans); font-size:12.5px;}
   width:360px; flex:0 0 auto; background:var(--panel); border-right:1px solid var(--line);
   display:flex; flex-direction:column; min-height:0;
 }
-#tabs{display:flex; flex-wrap:wrap; border-bottom:1px solid var(--line); background:var(--panel2);}
+#tabs{display:none; flex-wrap:wrap; border-bottom:1px solid var(--line); background:var(--panel2);}
+#tabs.open{display:flex;}
 .tabbtn{
   flex:1 1 33%; padding:9px 4px; text-align:center; background:none; border:none; color:var(--muted);
   cursor:pointer; font-size:11px; letter-spacing:.03em; text-transform:uppercase; border-bottom:2px solid transparent;
@@ -299,6 +300,13 @@ textarea.summaryPreview{
   #legendLabels{ font-size:9.5px; }
 }
 
+
+    #fieldResult { position:absolute; left:50%; bottom:34px; transform:translateX(-50%); z-index:1100; width:min(560px, 92%); background:rgba(10,16,14,.94); color:#f4f7f2; border:1px solid rgba(255,255,255,.18); border-radius:14px; padding:14px 20px 16px; text-align:center; display:none; pointer-events:none; box-shadow:0 10px 32px rgba(0,0,0,.4); }
+    #fieldResult b { display:block; font-size:26px; line-height:1.25; letter-spacing:-.02em; }
+    #fieldResult span { display:block; margin-top:6px; font-size:15px; color:#d7e0d8; }
+    #compareBar { position:absolute; left:50%; bottom:118px; transform:translateX(-50%); z-index:1100; display:none; align-items:center; gap:12px; background:rgba(10,16,14,.94); color:#f4f7f2; border:1px solid rgba(255,255,255,.18); border-radius:999px; padding:8px 16px; font-size:16px; }
+    #compareBar input { width:min(280px, 46vw); height:28px; accent-color:#b6d36a; }
+    #compareLine { position:absolute; top:0; bottom:0; width:3px; background:#f4f7f2; z-index:1090; display:none; pointer-events:none; box-shadow:0 0 0 1px rgba(0,0,0,.45); }
     #readProgress { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:5000; width:min(480px, 88vw); background:rgba(10,16,14,.94); color:#f4f7f2; border:1px solid rgba(255,255,255,.2); border-radius:16px; padding:26px 28px; display:none; box-shadow:0 16px 48px rgba(0,0,0,.45); }
     #readProgress b { display:block; font-size:22px; line-height:1.3; margin-bottom:10px; }
     #readProgress .pct { font-size:48px; font-weight:700; letter-spacing:-.03em; }
@@ -354,6 +362,7 @@ textarea.summaryPreview{
           <button type="button" class="btn primary big" id="btnCleanField">Clean this field</button>
           <div class="hint" id="cleanResult">The delay, the points removed, and anything left off will show here.</div>
           <button type="button" class="btn" id="btnAdjust">Adjust the cuts</button>
+          <button type="button" class="btn" id="btnMore">More</button>
         </div>
         <div class="section">
           <h3>3. Check and send</h3>
@@ -707,6 +716,9 @@ textarea.summaryPreview{
       <label>Colour map by</label>
       <select id="attrSelect"></select>
     </div>
+    <div id="compareLine"></div>
+    <div id="compareBar"><span>Raw</span><input type="range" id="compareSlider" min="0" max="100" value="100" aria-label="Raw or cleaned"><span>Cleaned</span></div>
+    <div id="fieldResult"><b id="fieldResultLine"></b><span id="fieldResultDetail"></span></div>
     <div id="legend">
       <h4 id="legendTitle">Yield</h4>
       <div id="legendBar"></div>
@@ -2193,6 +2205,7 @@ const S = {
 
 let map, boundaryLayer;
 let pointLayer, pointRenderer = null;
+let rawLayer, rawRenderer = null;
 let selectionLayer = null;   // FeatureGroup holding the finished POS box + MAN polygons
 let posBoxLayer = null;      // the single POS rectangle, if any
 
@@ -2937,6 +2950,13 @@ function finishAutoClean(jobs){
   if (hint) hint.textContent = line;
   const clean = document.getElementById("cleanResult");
   if (clean) clean.textContent = line;
+  const ykeep = rows.map(r => parseFloat(r[ycol])).filter(isFinite);
+  const mean = ykeep.length ? ykeep.reduce((a,b) => a + b, 0) / ykeep.length : NaN;
+  const unit = (S.units && S.units.yield) || "";
+  const short = (delay ? delay.value : "?") + " s delay · " + kept.toLocaleString() + " of " + total.toLocaleString() + " kept" + (isFinite(mean) ? " · " + mean.toFixed(1) + (unit ? " " + unit : "") : "");
+  showFieldResult(short, line);
+  const bar = document.getElementById("compareBar");
+  if (bar) bar.style.display = "flex";
   toast(line);
 }
 function setFilter(code, val){
@@ -3130,6 +3150,12 @@ async function loadFromClean(files){
   }});
 }
 function showBeforeAfter(){
+  const slider = document.getElementById("compareSlider");
+  if (slider){
+    slider.value = Number(slider.value) < 50 ? 100 : 0;
+    applyCompare();
+    return;
+  }
   S.previewRaw = !S.previewRaw;
   const btn = document.getElementById("btnBeforeAfter");
   if (btn) btn.textContent = S.previewRaw ? "Show the cleaned field" : "Show the file before cleaning";
@@ -3142,7 +3168,35 @@ document.getElementById("fileClean").addEventListener("change", async (e) => {
 });
 document.getElementById("btnCleanField").addEventListener("click", runAutoClean);
 document.getElementById("btnCleanFieldBar").addEventListener("click", runAutoClean);
-document.getElementById("btnAdjust").addEventListener("click", () => document.querySelector('.tabbtn[data-tab="filters"]').click());
+document.getElementById("btnAdjust").addEventListener("click", () => { document.getElementById("tabs").classList.add("open"); document.getElementById("btnMore").textContent = "Less"; document.querySelector('.tabbtn[data-tab="filters"]').click(); });
+document.getElementById("btnMore").addEventListener("click", () => {
+  const tabs = document.getElementById("tabs");
+  tabs.classList.toggle("open");
+  document.getElementById("btnMore").textContent = tabs.classList.contains("open") ? "Less" : "More";
+});
+function showFieldResult(line, detail){
+  const box = document.getElementById("fieldResult");
+  if (!box) return;
+  box.style.display = "block";
+  document.getElementById("fieldResultLine").textContent = line;
+  document.getElementById("fieldResultDetail").textContent = detail || "";
+}
+function applyCompare(){
+  const slider = document.getElementById("compareSlider");
+  const line = document.getElementById("compareLine");
+  const pane = map.getPane("rawPane");
+  const pct = slider ? Number(slider.value) : 100;
+  if (line){
+    line.style.display = pct > 1 && pct < 99 ? "block" : "none";
+    line.style.left = pct + "%";
+  }
+  if (!pane || !rawLayer) return;
+  pane.style.clipPath = pct >= 99 ? "inset(0 0 0 100%)" : "inset(0 " + (100 - pct) + "% 0 0)";
+  S.previewRaw = pct < 50;
+  const btn = document.getElementById("btnBeforeAfter");
+  if (btn) btn.textContent = pct < 50 ? "Show the cleaned field" : "Show the file before cleaning";
+}
+document.getElementById("compareSlider").addEventListener("input", applyCompare);
 document.getElementById("btnBeforeAfter").addEventListener("click", showBeforeAfter);
 document.getElementById("btnSendShapefile").addEventListener("click", () => document.getElementById("btnExportShapefile").click());
 document.getElementById("scaleTicket").addEventListener("input", refreshCleanPanel);
@@ -3942,7 +3996,35 @@ function renderPoints(){
   }
   pointLayer = L.layerGroup(layers).addTo(map);
   setPointsInteractive(!drawMode);
-  if (selectionLayer) selectionLayer.bringToFront(); // drawn shapes stay above the points
+  if (selectionLayer) selectionLayer.bringToFront();
+  buildRawOverlay(lo, hi, attr);
+  applyCompare();
+}
+
+function buildRawOverlay(lo, hi, attr){
+  if (rawLayer){ map.removeLayer(rawLayer); rawLayer = null; }
+  const { lon, lat } = S.mapping;
+  if (!S.rawRows || !S.rawRows.length || !lon || !lat) return;
+  if (!map.getPane("rawPane")){
+    map.createPane("rawPane");
+    const pane = map.getPane("rawPane");
+    pane.style.zIndex = 450;
+    pane.style.pointerEvents = "none";
+  }
+  if (!rawRenderer) rawRenderer = L.canvas({ padding: 0.5, pane: "rawPane" });
+  const cap = 40000;
+  const step = Math.max(1, Math.floor(S.rawRows.length / cap));
+  const layers = [];
+  for (let i = 0; i < S.rawRows.length; i += step){
+    const r = S.rawRows[i];
+    const la = parseFloat(r[lat]), lo_ = parseFloat(r[lon]);
+    if (!isFinite(la) || !isFinite(lo_)) continue;
+    const v = attr ? parseFloat(r[attr]) : null;
+    const tt = (v !== null && isFinite(v)) ? Math.max(0, Math.min(1, (v - lo) / (hi - lo))) : null;
+    const color = tt !== null ? colorForRatio(tt) : "#93b23f";
+    layers.push(L.circleMarker([la, lo_], { radius:3, color, fillColor:color, fillOpacity:0.85, weight:0, opacity:0.9, renderer: rawRenderer }));
+  }
+  rawLayer = L.layerGroup(layers).addTo(map);
 }
 
 function popupHtml(row, attr){
