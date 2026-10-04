@@ -32,6 +32,8 @@ Moisture delay and start and end of pass are not set by this pass. Hillcrest 202
 - Save the mapping, filters, balance, and post-cal as a small JSON file and load it on a similar file later.
 - A summary can be downloaded as Markdown or HTML.
 
+A local call for other programs is in [API.md](API.md). It runs the same clean. It does not send the file anywhere.
+
 ## Not in yet
 
 - A planting `.2020` and a sprayer `.2020`. When those are added, the default map is one point per second for the whole implement, with a per-row layer behind it. The first sprayer layer is applied rate.

@@ -2958,6 +2958,11 @@ function finishAutoClean(jobs){
   const bar = document.getElementById("compareBar");
   if (bar) bar.style.display = "flex";
   toast(line);
+  if (S.onCleaned){
+    const done = S.onCleaned;
+    S.onCleaned = null;
+    done({ delay: delay ? Number(delay.value) : null, kept, total, average: isFinite(mean) ? mean : null, unit, note: line, rows: S.filteredRows });
+  }
 }
 function setFilter(code, val){
   S.filters[code].enabled = true;
@@ -4702,3 +4707,27 @@ initMap();
 
 </body>
 </html>
+
+window.YieldEditor = {
+  version: "0.3",
+  load(rows, mapping){
+    if (!rows || !rows.length) throw new Error("No points.");
+    S.rawRows = rows.map(r => Object.assign({}, r));
+    S.columns = Object.keys(rows[0]);
+    S.numericCols = S.columns;
+    S.mapping = Object.assign({ primaryYield: "dry" }, mapping || {});
+    S.sourceFormat = "API";
+    S.sourceFilename = "api";
+    S.units = { yield: "bu/ac", velocity: "mph", swath: "ft" };
+    finishImport();
+    return S.rawRows.length;
+  },
+  clean(){
+    return new Promise((resolve, reject) => {
+      if (!S.rawRows.length){ reject(new Error("Load points first.")); return; }
+      S.onCleaned = resolve;
+      runAutoClean();
+      setTimeout(() => { if (S.onCleaned){ S.onCleaned = null; reject(new Error("The clean did not finish.")); } }, 120000);
+    });
+  }
+};
