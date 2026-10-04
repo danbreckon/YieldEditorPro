@@ -1,24 +1,24 @@
 # Yield Editor Pro — Web
 
-A free browser page for cleaning combine yield-monitor data. Drop a file, run Clean this field, check the map, and send the cleaned file. No account. A shapefile, a zip, or a text file stays in the browser. A Precision Planting harvest `.2020` is sent only to the reader on that computer, not to a server.
+A free browser page for cleaning combine yield-monitor data. Drop a file, run Clean this field, check the map, and send the cleaned file. No account. A shapefile, a zip of a shapefile, or a text file stays in the browser. A Precision Planting harvest `.2020` is not read by this page. If a reader licensed from Precision Planting is already on that computer, the page can send the file to that reader. It does not send the file to a server.
 
-Dan Breckon and Cory Weber are the authors. Cory Weber wrote the original page. Dan Breckon wrote the automatic clean, the PCDI flow-delay search in this project, and the harvest `.2020` reader.
+Dan Breckon and Cory Weber are the authors. Cory Weber wrote the original page. Dan Breckon wrote the automatic clean, the PCDI flow-delay search in this project, and the harvest `.2020` reader call. Each keeps the copyright in the part he wrote.
 
-The current page is `index.html` in this repo. Open that file, or the copy inside YieldEditor-with-2020.zip. The copy at <https://coryweber1988.github.io/YieldEditorPro/> is the original author's hosted page and does not have the automatic pass.
+The current page is `index.html` in this repo. Open that file. The copy at <https://coryweber1988.github.io/YieldEditorPro/> is the original author's hosted page and does not have the automatic pass.
 
 ## Give it away
 
-This page is free. Copy it, send it, and put it on a stick. No account, no fee, no limit on fields. A consultant can hand the file to a grower. The license is AGPLv3, so a copy that is changed and offered to others has to stay free too.
+This page is free. Copy it, send it, and put it on a stick. No account, no fee, no limit on fields. A consultant can hand the file to a grower. The license is AGPLv3, so a copy that is changed and offered to others has to stay free too. A hosted copy of a changed page has to offer that same source.
 
-The Precision Planting reader in YieldEditor-with-2020.zip is not part of this gift. That plugin is theirs. The page in this repo is the part anyone can take.
+The Precision Planting 20|20 ADAPT plugin is not part of this gift. It is not in this repo, and this repo does not offer a zip that contains it. That plugin is theirs. Do not attach it to a release or hand it on with the page. A wider distribution needs written leave from Precision Planting. The page in this repo is the part anyone can take.
 
-The page does not ask for money. If the work saved you a night and you want to pay Dan Breckon for it, open an issue on this repo and say so. He will send the way to pay. Paying does not unlock a feature.
+The page does not ask for money. If the work saved you a night and you want to pay Dan Breckon for it, open an issue on this repo and say so. He will send the way to pay. Paying does not unlock a feature, and it does not include the plugin.
 
 ## Open a file
 
 A shapefile, a zip of a shapefile, AgLeader advanced text, a delimited text file, or GeoJSON opens in the page. A John Deere harvest shapefile needs the `.shp`, `.dbf`, and `.shx` together. The `.prj` should come with them. The page will not take the `.shp` alone.
 
-A Precision Planting harvest `.2020` needs the local reader. Extract YieldEditor-with-2020.zip and double-click Open Yield Editor, not the page. The steps are in [Read-me-2020.txt](Read-me-2020.txt). Planting and sprayer `.2020` files are not read yet. A raw John Deere display card is not read yet. The harvest shapefile that display writes is the path that works today.
+A Precision Planting harvest `.2020` needs a reader licensed on that computer. This page cannot install it, and this repo does not ship it. See [Read-me-2020.txt](Read-me-2020.txt). Planting and sprayer `.2020` files are not read yet. A raw John Deere display card is not read yet. The plugin has to be licensed before that drop can work. Until then, use the harvest shapefile that display writes.
 
 ## Automatic clean
 
@@ -49,9 +49,9 @@ A local call for other programs is in [API.md](API.md). It runs the same clean. 
 
 ## Getting started
 
-For a shapefile or a text file, download `index.html` and open it in Chrome, Firefox, Edge, or Safari. Nothing else is installed. The page loads Leaflet, PapaParse, JSZip, and shp.js from cdnjs the first time, so that first open needs a network. The yield file stays in the browser.
+Download `index.html` and open it in Chrome, Firefox, Edge, or Safari. Nothing else is installed. The page loads Leaflet, PapaParse, JSZip, and shp.js from cdnjs the first time, so that first open needs a network. The yield file stays in the browser.
 
-For a harvest `.2020`, use the zip and [Read-me-2020.txt](Read-me-2020.txt). The page alone cannot read that format.
+A harvest `.2020` is not opened by that download. The reader is separate, and it is not offered here.
 
 ## Using it
 
@@ -64,11 +64,13 @@ The other tabs are still there: import and column mapping, balance, the individu
 
 ## Attribution — USDA Yield Editor
 
-The filter, balance, and calibrate workflow, and the names of the cuts, come from Yield Editor, written by USDA Agricultural Research Service, Cropping Systems and Water Quality Research Unit, Columbia, Missouri. The paper this page follows is Sudduth and Drummond, 2007, Agronomy Journal 99:1471–1482. The flow-delay search in this project is Dan Breckon's implementation of PCDI, the pass-to-pass method in Lee, Sudduth, Drummond, and Chung, 2012. The method is theirs. The code here is his. This project is not a USDA product, and it is not endorsed by USDA.
+The filter, balance, and calibrate workflow follows Yield Editor, from USDA-ARS in Columbia, Missouri, and the method in Sudduth and Drummond, 2007. The flow-delay search in this project is Dan Breckon's implementation of PCDI, from Lee, Sudduth, Drummond, and Chung, 2012. The method is theirs. The code here is ours. This project is not a USDA product and is not endorsed by USDA. USDA's own download terms apply to USDA's software, not to this page.
+
+Yield Editor is a name used by USDA-ARS. AgLeader, John Deere, FieldView, Precision Planting, and 20|20 are names of their owners. This project is not affiliated with them.
 
 ## License
 
-AGPLv3. See [LICENSE](LICENSE). The USDA method named above is separate from that license.
+AGPLv3. Copyright (C) 2026 Cory Weber and Dan Breckon. See [LICENSE](LICENSE). The USDA method named above is separate from that license.
 
 ## Acknowledgments
 
@@ -79,9 +81,9 @@ Loaded from [cdnjs](https://cdnjs.com/):
 - [JSZip](https://stuk.github.io/jszip/) for a zipped shapefile
 - [shp.js](https://github.com/calvinmetcalf/shapefile-js) for shapefile import
 
-A harvest `.2020` is read by the Precision Planting ADAPT plugin, version 6.2.1, inside the local reader. That plugin is not part of this repo.
+A harvest `.2020` can be read only by a Precision Planting ADAPT plugin the user has licensed. That plugin is not part of this repo, and it is not offered for download here.
 
 ## Roadmap
 
-- Planting and sprayer `.2020` files, mapped as above.
+- Planting and sprayer `.2020` files, mapped as above, once a licensed reader can supply them.
 - A raw John Deere display card, once the licensed plugin can be used.

@@ -1,27 +1,22 @@
-Yield Editor Pro — opening a Precision Planting .2020 file
+Yield Editor Pro — a Precision Planting .2020 file
 
-A shapefile, a zip, or a text file opens in the page by itself.
-A .2020 file does not. The reader is a separate program. It has to be registered once.
-This reader is for a harvest file. A planting file and a sprayer file are not read yet.
+A shapefile, a zip of a shapefile, or a text file opens in the page.
+That page is the part anyone can take.
 
-1. Right-click YieldEditor-with-2020.zip and choose Extract All.
-2. Open the new folder.
-3. Double-click Open Yield Editor.
-   Do not double-click YieldEditorPro.html.
-   Open Yield Editor registers the reader, then opens the page.
-4. Drop the .2020 on that page.
-5. If Windows asks to open Yield2020, allow it.
+A .2020 file does not open in the page alone. Reading it needs the
+Precision Planting 20|20 ADAPT plugin. That plugin is theirs. It is not
+in this repo, and it is not part of the gift. This project does not
+offer the plugin, or a zip that contains it, for download.
 
-A box in the middle of the map shows the percent and the time left.
-It closes when the field is drawn. Click the box to close it early.
-The harvest points load. Clean this field runs the same pass as a shapefile.
-A delay the monitor already applied is reported. The search still runs.
-If the file has no header width, overlap stays off.
+Do not copy the plugin onto a stick, attach it to a release, or hand it
+to a grower as part of this page. A wider distribution needs written
+leave from Precision Planting. Until that leave exists, the plugin stays
+with the person who licensed it.
 
-Open Yield Editor sits next to YieldEditorPro.html and Yield2020.exe.
-If the folder only has the page, the zip was not fully extracted.
-If Yield2020.exe is missing after Extract All, Windows Defender may have removed it.
-Check Protection history and allow it.
+If a reader licensed from Precision Planting is already on that computer,
+the page can send a dropped harvest .2020 to it. The page cannot install
+the reader. Planting and sprayer .2020 files are not read yet.
 
-After that one double-click, a later drop can start the reader.
-The page downloaded on its own never will.
+A raw John Deere display card is not read. The John Deere ADAPT plugin
+has to be licensed before that drop can work. Until then, use the harvest
+shapefile that display writes.
